@@ -18,7 +18,7 @@ This plan covers the implementation of the core wall and room detection logic.
 - [x] Task: Implement closed loop detection [9905a63]
     - [ ] Write Tests: Test loop finding with simple and complex wall layouts
     - [ ] Implement Feature: Loop detection algorithm in `src/core/geometry/RoomFinder.ts`
-- [ ] Task: Implement Room generation and Area calculation
+- [x] Task: Implement Room generation and Area calculation [f9f3f1c]
     - [ ] Write Tests: Verify room area for different wall thicknesses
     - [ ] Implement Feature: Room entity and AreaService in `src/core/domain/`
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Room Detection Engine' (Protocol in workflow.md)
