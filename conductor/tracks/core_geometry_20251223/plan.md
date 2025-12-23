@@ -15,7 +15,7 @@ This plan covers the implementation of the core wall and room detection logic.
 - [x] Task: Implement wall graph construction [f2040f5]
     - [ ] Write Tests: Verify graph nodes and edges from a set of walls
     - [ ] Implement Feature: Graph building logic in `src/core/geometry/RoomFinder.ts`
-- [ ] Task: Implement closed loop detection
+- [x] Task: Implement closed loop detection [9905a63]
     - [ ] Write Tests: Test loop finding with simple and complex wall layouts
     - [ ] Implement Feature: Loop detection algorithm in `src/core/geometry/RoomFinder.ts`
 - [ ] Task: Implement Room generation and Area calculation
