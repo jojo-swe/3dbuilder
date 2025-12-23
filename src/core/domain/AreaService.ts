@@ -1,6 +1,7 @@
 import type { Project } from './types';
 import { RoomFinder } from '../geometry/RoomFinder';
 import { PolygonUtils } from '../geometry/PolygonUtils';
+import { Vector2Math } from '../geometry/Vector2Math';
 
 export interface RoomCalculation {
   wallIds: string[];
@@ -13,23 +14,49 @@ export const AreaService = {
     const loops = RoomFinder.findRooms(project.nodes, project.walls);
     
     const rooms: RoomCalculation[] = loops.map(wallIds => {
-        const points = wallIds.map(wId => {
-             const wall = project.walls[wId];
-             // Note: detailed logic would need to trace start->end order correctly
-             // For now we assume the room finder returns ordered walls, 
-             // but we need the correct vertex order.
-             const node = project.nodes[wall.startNodeId];
-             return {x: node.x, y: node.y}; 
-        });
-        
-        // Refinement: RoomFinder returns walls. We really need ordered vertices.
-        // But for Area Shoelace, startNode of ordered walls is usually correct if they are head-to-tail.
-        // RoomFinder logic traces `endNode -> startNode` (or vice versa).
+        const vertices: {x: number, y: number}[] = [];
+        let perimeter = 0;
+
+        for (let i = 0; i < wallIds.length; i++) {
+            const wId = wallIds[i];
+            const wall = project.walls[wId];
+            
+            // Calculate Length
+            const nStart = project.nodes[wall.startNodeId];
+            const nEnd = project.nodes[wall.endNodeId];
+            const len = Vector2Math.distance(
+                {x: nStart.x, y: nStart.y}, 
+                {x: nEnd.x, y: nEnd.y}
+            );
+            perimeter += len;
+
+            // Find Vertex (Corner)
+            // We need the vertex connecting to the NEXT wall to build the ordered polygon.
+            const nextWId = wallIds[(i + 1) % wallIds.length];
+            const nextWall = project.walls[nextWId];
+
+            let cornerNodeId: string | null = null;
+            
+            // Check connectivity
+            // w1 could be s->e or e->s
+            // w2 could be s->e or e->s
+            // We want the node shared by current wall and next wall.
+            if (wall.endNodeId === nextWall.startNodeId || wall.endNodeId === nextWall.endNodeId) {
+                cornerNodeId = wall.endNodeId;
+            } else if (wall.startNodeId === nextWall.startNodeId || wall.startNodeId === nextWall.endNodeId) {
+                cornerNodeId = wall.startNodeId;
+            }
+
+            if (cornerNodeId) {
+                const node = project.nodes[cornerNodeId];
+                vertices.push({x: node.x, y: node.y});
+            }
+        }
         
         return {
             wallIds,
-            area: PolygonUtils.area(points),
-            perimeter: 0 // TODO calculate
+            area: PolygonUtils.area(vertices),
+            perimeter
         };
     });
     
