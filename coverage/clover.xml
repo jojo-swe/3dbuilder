@@ -1,26 +1,54 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1766496897183" clover="3.2.0">
-  <project timestamp="1766496897184" name="All files">
-    <metrics statements="43" coveredstatements="24" conditionals="19" coveredconditionals="12" methods="17" coveredmethods="6" elements="79" coveredelements="42" complexity="0" loc="43" ncloc="43" packages="2" files="5" classes="5"/>
+<coverage generated="1766498765463" clover="3.2.0">
+  <project timestamp="1766498765464" name="All files">
+    <metrics statements="141" coveredstatements="116" conditionals="51" coveredconditionals="30" methods="30" coveredmethods="19" elements="222" coveredelements="165" complexity="0" loc="141" ncloc="141" packages="2" files="8" classes="8"/>
     <package name="domain">
-      <metrics statements="8" coveredstatements="8" conditionals="8" coveredconditionals="8" methods="2" coveredmethods="2"/>
+      <metrics statements="33" coveredstatements="31" conditionals="18" coveredconditionals="11" methods="5" coveredmethods="5"/>
+      <file name="AreaService.ts" path="C:\Users\johnj\CascadeProjects\personal\3dbuilder\src\core\domain\AreaService.ts">
+        <metrics statements="25" coveredstatements="23" conditionals="10" coveredconditionals="3" methods="3" coveredmethods="3"/>
+        <line num="12" count="1" type="stmt"/>
+        <line num="14" count="1" type="stmt"/>
+        <line num="16" count="1" type="stmt"/>
+        <line num="17" count="1" type="stmt"/>
+        <line num="18" count="1" type="stmt"/>
+        <line num="20" count="1" type="stmt"/>
+        <line num="21" count="4" type="stmt"/>
+        <line num="22" count="4" type="stmt"/>
+        <line num="25" count="4" type="stmt"/>
+        <line num="26" count="4" type="stmt"/>
+        <line num="27" count="4" type="stmt"/>
+        <line num="31" count="4" type="stmt"/>
+        <line num="35" count="4" type="stmt"/>
+        <line num="36" count="4" type="stmt"/>
+        <line num="38" count="4" type="stmt"/>
+        <line num="44" count="4" type="cond" truecount="2" falsecount="2"/>
+        <line num="45" count="4" type="stmt"/>
+        <line num="46" count="0" type="cond" truecount="0" falsecount="4"/>
+        <line num="47" count="0" type="stmt"/>
+        <line num="50" count="4" type="cond" truecount="1" falsecount="1"/>
+        <line num="51" count="4" type="stmt"/>
+        <line num="52" count="4" type="stmt"/>
+        <line num="56" count="1" type="stmt"/>
+        <line num="63" count="1" type="stmt"/>
+        <line num="64" count="1" type="stmt"/>
+      </file>
       <file name="DomainFactory.ts" path="C:\Users\johnj\CascadeProjects\personal\3dbuilder\src\core\domain\DomainFactory.ts">
         <metrics statements="8" coveredstatements="8" conditionals="8" coveredconditionals="8" methods="2" coveredmethods="2"/>
-        <line num="11" count="13" type="stmt"/>
-        <line num="33" count="5" type="cond" truecount="2" falsecount="0"/>
+        <line num="11" count="29" type="stmt"/>
+        <line num="33" count="21" type="cond" truecount="2" falsecount="0"/>
         <line num="34" count="2" type="stmt"/>
-        <line num="36" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="36" count="19" type="cond" truecount="2" falsecount="0"/>
         <line num="37" count="1" type="stmt"/>
-        <line num="39" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="39" count="18" type="cond" truecount="2" falsecount="0"/>
         <line num="40" count="1" type="stmt"/>
-        <line num="43" count="1" type="stmt"/>
+        <line num="43" count="17" type="stmt"/>
       </file>
       <file name="types.ts" path="C:\Users\johnj\CascadeProjects\personal\3dbuilder\src\core\domain\types.ts">
         <metrics statements="0" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
       </file>
     </package>
     <package name="geometry">
-      <metrics statements="35" coveredstatements="16" conditionals="11" coveredconditionals="4" methods="15" coveredmethods="4"/>
+      <metrics statements="108" coveredstatements="85" conditionals="33" coveredconditionals="19" methods="25" coveredmethods="14"/>
       <file name="LineUtils.ts" path="C:\Users\johnj\CascadeProjects\personal\3dbuilder\src\core\geometry\LineUtils.ts">
         <metrics statements="11" coveredstatements="11" conditionals="4" coveredconditionals="4" methods="1" coveredmethods="1"/>
         <line num="13" count="3" type="stmt"/>
@@ -35,15 +63,94 @@
         <line num="27" count="1" type="stmt"/>
         <line num="30" count="2" type="stmt"/>
       </file>
+      <file name="PolygonUtils.ts" path="C:\Users\johnj\CascadeProjects\personal\3dbuilder\src\core\geometry\PolygonUtils.ts">
+        <metrics statements="13" coveredstatements="13" conditionals="0" coveredconditionals="0" methods="2" coveredmethods="2"/>
+        <line num="3" count="2" type="stmt"/>
+        <line num="5" count="1" type="stmt"/>
+        <line num="6" count="1" type="stmt"/>
+        <line num="7" count="4" type="stmt"/>
+        <line num="8" count="4" type="stmt"/>
+        <line num="9" count="4" type="stmt"/>
+        <line num="11" count="1" type="stmt"/>
+        <line num="15" count="7" type="stmt"/>
+        <line num="16" count="7" type="stmt"/>
+        <line num="17" count="30" type="stmt"/>
+        <line num="18" count="30" type="stmt"/>
+        <line num="19" count="30" type="stmt"/>
+        <line num="21" count="7" type="stmt"/>
+      </file>
+      <file name="RoomFinder.ts" path="C:\Users\johnj\CascadeProjects\personal\3dbuilder\src\core\geometry\RoomFinder.ts">
+        <metrics statements="60" coveredstatements="56" conditionals="22" coveredconditionals="15" methods="8" coveredmethods="8"/>
+        <line num="16" count="4" type="stmt"/>
+        <line num="19" count="16" type="stmt"/>
+        <line num="22" count="4" type="stmt"/>
+        <line num="23" count="16" type="stmt"/>
+        <line num="24" count="16" type="stmt"/>
+        <line num="25" count="16" type="cond" truecount="3" falsecount="1"/>
+        <line num="27" count="16" type="stmt"/>
+        <line num="28" count="16" type="stmt"/>
+        <line num="31" count="16" type="stmt"/>
+        <line num="32" count="16" type="stmt"/>
+        <line num="40" count="16" type="stmt"/>
+        <line num="41" count="16" type="stmt"/>
+        <line num="50" count="4" type="stmt"/>
+        <line num="51" count="17" type="stmt"/>
+        <line num="54" count="4" type="stmt"/>
+        <line num="61" count="2" type="stmt"/>
+        <line num="68" count="3" type="stmt"/>
+        <line num="70" count="3" type="stmt"/>
+        <line num="71" count="3" type="stmt"/>
+        <line num="74" count="3" type="stmt"/>
+        <line num="75" count="14" type="stmt"/>
+        <line num="76" count="14" type="stmt"/>
+        <line num="77" count="30" type="stmt"/>
+        <line num="78" count="30" type="cond" truecount="2" falsecount="0"/>
+        <line num="81" count="7" type="stmt"/>
+        <line num="82" count="7" type="stmt"/>
+        <line num="84" count="7" type="stmt"/>
+        <line num="85" count="7" type="stmt"/>
+        <line num="86" count="7" type="stmt"/>
+        <line num="88" count="7" type="stmt"/>
+        <line num="89" count="7" type="stmt"/>
+        <line num="91" count="7" type="stmt"/>
+        <line num="92" count="7" type="stmt"/>
+        <line num="94" count="7" type="stmt"/>
+        <line num="95" count="30" type="cond" truecount="2" falsecount="0"/>
+        <line num="96" count="7" type="stmt"/>
+        <line num="97" count="7" type="stmt"/>
+        <line num="99" count="23" type="stmt"/>
+        <line num="101" count="23" type="stmt"/>
+        <line num="102" count="23" type="cond" truecount="1" falsecount="1"/>
+        <line num="105" count="37" type="stmt"/>
+        <line num="107" count="23" type="cond" truecount="1" falsecount="1"/>
+        <line num="111" count="23" type="stmt"/>
+        <line num="112" count="23" type="stmt"/>
+        <line num="114" count="23" type="stmt"/>
+        <line num="115" count="23" type="cond" truecount="1" falsecount="1"/>
+        <line num="116" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="117" count="0" type="stmt"/>
+        <line num="118" count="0" type="stmt"/>
+        <line num="120" count="0" type="stmt"/>
+        <line num="123" count="23" type="stmt"/>
+        <line num="124" count="23" type="stmt"/>
+        <line num="126" count="23" type="stmt"/>
+        <line num="127" count="23" type="stmt"/>
+        <line num="128" count="23" type="stmt"/>
+        <line num="131" count="7" type="cond" truecount="3" falsecount="1"/>
+        <line num="134" count="30" type="stmt"/>
+        <line num="138" count="7" type="cond" truecount="2" falsecount="0"/>
+        <line num="139" count="4" type="stmt"/>
+        <line num="145" count="3" type="stmt"/>
+      </file>
       <file name="Vector2Math.ts" path="C:\Users\johnj\CascadeProjects\personal\3dbuilder\src\core\geometry\Vector2Math.ts">
         <metrics statements="23" coveredstatements="4" conditionals="7" coveredconditionals="0" methods="14" coveredmethods="3"/>
-        <line num="4" count="1" type="stmt"/>
+        <line num="4" count="3" type="stmt"/>
         <line num="6" count="0" type="stmt"/>
         <line num="10" count="0" type="stmt"/>
-        <line num="14" count="5" type="stmt"/>
+        <line num="14" count="41" type="stmt"/>
         <line num="18" count="0" type="stmt"/>
-        <line num="22" count="5" type="stmt"/>
-        <line num="26" count="5" type="stmt"/>
+        <line num="22" count="9" type="stmt"/>
+        <line num="26" count="9" type="stmt"/>
         <line num="30" count="0" type="stmt"/>
         <line num="31" count="0" type="cond" truecount="0" falsecount="2"/>
         <line num="32" count="0" type="stmt"/>
@@ -63,7 +170,7 @@
       </file>
       <file name="types.ts" path="C:\Users\johnj\CascadeProjects\personal\3dbuilder\src\core\geometry\types.ts">
         <metrics statements="1" coveredstatements="1" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
-        <line num="13" count="1" type="stmt"/>
+        <line num="13" count="3" type="stmt"/>
       </file>
     </package>
   </project>
