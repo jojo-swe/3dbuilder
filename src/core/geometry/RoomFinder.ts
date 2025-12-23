@@ -1,27 +1,17 @@
 import type { EntityId, Wall, Node } from '../domain/types';
 import { Vector2Math } from './Vector2Math';
-// import type { Vector2 } from './types'; // Removed unused
 
-// GraphNode interface removed as it was unused
-
-interface DirectedEdge {
+export interface DirectedEdge {
   wallId: EntityId;
   startNodeId: EntityId;
   endNodeId: EntityId;
   angle: number; // Angle of the edge leaving startNode
 }
 
-/**
- * Finds all closed loops (rooms) in the wall graph.
- * Uses the "Left Hand Rule" (or specific winding) to find smallest cycles.
- */
-export const RoomFinder = {
-  findRooms(
+export function buildGraph(
     nodes: Record<EntityId, Node>,
     walls: Record<EntityId, Wall>
-  ): EntityId[][] { // Returns lists of Wall IDs forming loops
-    
-    // 1. Build adjacency list with directed edges
+  ): Record<EntityId, DirectedEdge[]> {
     const adj: Record<EntityId, DirectedEdge[]> = {};
     
     // Initialize
@@ -59,6 +49,22 @@ export const RoomFinder = {
     Object.values(adj).forEach(edges => {
       edges.sort((a, b) => a.angle - b.angle);
     });
+
+    return adj;
+}
+
+/**
+ * Finds all closed loops (rooms) in the wall graph.
+ * Uses the "Left Hand Rule" (or specific winding) to find smallest cycles.
+ */
+export const RoomFinder = {
+  findRooms(
+    nodes: Record<EntityId, Node>,
+    walls: Record<EntityId, Wall>
+  ): EntityId[][] { // Returns lists of Wall IDs forming loops
+    
+    // 1. Build adjacency list with directed edges
+    const adj = buildGraph(nodes, walls);
 
     const loops: EntityId[][] = [];
     const visitedEdges = new Set<string>(); // "startId->endId"
