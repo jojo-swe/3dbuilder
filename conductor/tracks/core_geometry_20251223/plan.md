@@ -3,7 +3,7 @@
 This plan covers the implementation of the core wall and room detection logic.
 
 ## Phase 1: Wall Domain & Snapping
-- [ ] Task: Define Wall and Point types with validation logic
+- [x] Task: Define Wall and Point types with validation logic [38f7b35]
     - [ ] Write Tests: Validate wall creation and basic properties
     - [ ] Implement Feature: Create Wall entity in `src/core/domain/types.ts`
 - [ ] Task: Implement wall snapping utility
