@@ -12,7 +12,7 @@ This plan covers the implementation of the core wall and room detection logic.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Wall Domain & Snapping' (Protocol in workflow.md) [c3e70b9]
 
 ## Phase 2: Room Detection Engine
-- [ ] Task: Implement wall graph construction
+- [x] Task: Implement wall graph construction [f2040f5]
     - [ ] Write Tests: Verify graph nodes and edges from a set of walls
     - [ ] Implement Feature: Graph building logic in `src/core/geometry/RoomFinder.ts`
 - [ ] Task: Implement closed loop detection
