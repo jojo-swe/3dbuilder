@@ -2,14 +2,14 @@
 
 This plan covers the implementation of the core wall and room detection logic.
 
-## Phase 1: Wall Domain & Snapping
+## Phase 1: Wall Domain & Snapping [checkpoint: c3e70b9]
 - [x] Task: Define Wall and Point types with validation logic [38f7b35]
     - [ ] Write Tests: Validate wall creation and basic properties
     - [ ] Implement Feature: Create Wall entity in `src/core/domain/types.ts`
 - [x] Task: Implement wall snapping utility [207de4e]
     - [ ] Write Tests: Test snapping between wall endpoints with tolerance
     - [ ] Implement Feature: Snapping logic in `src/core/geometry/LineUtils.ts`
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Wall Domain & Snapping' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Wall Domain & Snapping' (Protocol in workflow.md) [c3e70b9]
 
 ## Phase 2: Room Detection Engine
 - [ ] Task: Implement wall graph construction
