@@ -11,7 +11,7 @@ This plan covers the implementation of the core wall and room detection logic.
     - [ ] Implement Feature: Snapping logic in `src/core/geometry/LineUtils.ts`
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Wall Domain & Snapping' (Protocol in workflow.md) [c3e70b9]
 
-## Phase 2: Room Detection Engine
+## Phase 2: Room Detection Engine [checkpoint: 673cb24]
 - [x] Task: Implement wall graph construction [f2040f5]
     - [ ] Write Tests: Verify graph nodes and edges from a set of walls
     - [ ] Implement Feature: Graph building logic in `src/core/geometry/RoomFinder.ts`
@@ -21,4 +21,4 @@ This plan covers the implementation of the core wall and room detection logic.
 - [x] Task: Implement Room generation and Area calculation [f9f3f1c]
     - [ ] Write Tests: Verify room area for different wall thicknesses
     - [ ] Implement Feature: Room entity and AreaService in `src/core/domain/`
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Room Detection Engine' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Room Detection Engine' (Protocol in workflow.md) [673cb24]
