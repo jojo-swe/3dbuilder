@@ -1,5 +1,6 @@
 import type { EntityId, Wall, Node } from '../domain/types';
 import { Vector2Math } from './Vector2Math';
+import { PolygonUtils } from './PolygonUtils';
 
 export interface DirectedEdge {
   wallId: EntityId;
@@ -78,6 +79,8 @@ export const RoomFinder = {
 
         // Trace a potential loop
         const pathWalls: EntityId[] = [];
+        const pathNodes: EntityId[] = [edge.startNodeId]; // Track nodes for polygon
+        
         let currNodeId = edge.endNodeId;
         let prevNodeId = startNodeId;
         const startEdgeKey = edgeKey;
@@ -93,6 +96,7 @@ export const RoomFinder = {
                 closed = true;
                 break;
             }
+            pathNodes.push(currNodeId);
 
             const available = adj[currNodeId];
             if (available.length < 2) break; // Dead end
@@ -102,20 +106,17 @@ export const RoomFinder = {
             
             if (backEdgeIndex === -1) break; // Should not happen if graph consistent
 
-            // We want the next edge in the sorted list (CCW winding)
+            // We want the previous edge in the sorted list (CCW winding / Turn Left)
             // Indices wrap around.
-            const nextEdgeIndex = (backEdgeIndex + 1) % available.length;
+            const nextEdgeIndex = (backEdgeIndex - 1 + available.length) % available.length;
             const nextEdge = available[nextEdgeIndex];
 
             const nextKey = `${nextEdge.startNodeId}->${nextEdge.endNodeId}`;
             if (visitedEdges.has(nextKey)) {
-                // Determine if this is a failure or just hitting a known path
-                // If it hits the START edge, it's a loop.
                 if (nextKey === startEdgeKey) {
                     closed = true;
                     break;
                 }
-                // Otherwise we merged into another loop or messed up
                 break;
             }
 
@@ -128,7 +129,15 @@ export const RoomFinder = {
         }
 
         if (closed && pathWalls.length > 2) {
-            loops.push(pathWalls);
+            // Reconstruct polygon to check orientation
+            // pathNodes contains the ordered vertices (excluding the closing duplicate)
+            const poly = pathNodes.map(id => ({ x: nodes[id].x, y: nodes[id].y }));
+            
+            // In standard math (Y up), CCW is positive area (Room). CW is negative (Outside).
+            // PolygonUtils.isClockwise returns true for CW.
+            if (!PolygonUtils.isClockwise(poly)) {
+                loops.push(pathWalls);
+            }
         }
       }
     }
