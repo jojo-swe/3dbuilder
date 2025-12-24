@@ -11,32 +11,57 @@ function App() {
   const project = useEditorStore(state => state.project);
 
   useEffect(() => {
-    // Initialize project if empty (or just checking if we need to load one)
     if (!project.id) {
        createProject();
     }
   }, [createProject, project.id]);
 
   return (
-    <div className="app-container font-sans text-gray-900">
+    <div style={{
+      display: 'flex',
+      flexDirection: 'row',
+      width: '100vw',
+      height: '100vh',
+      overflow: 'hidden',
+      margin: 0,
+      padding: 0
+    }}>
+      {/* Left Toolbar - Fixed width */}
       <Toolbar />
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden h-full">
-        {/* 2D Editor */}
-        <div className="flex-1 border-r border-gray-200 relative flex flex-col min-w-0 min-h-0">
-             <FloorPlanEditor />
+      
+      {/* Main Content Area - Split between 2D and 3D */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'row',
+        overflow: 'hidden'
+      }}>
+        {/* 2D Editor - Half of remaining space */}
+        <div style={{
+          flex: 1,
+          position: 'relative',
+          overflow: 'hidden',
+          borderRight: '1px solid #e5e7eb',
+          minWidth: 0
+        }}>
+          <FloorPlanEditor />
         </div>
         
-        {/* 3D Viewport */}
-        <div className="flex-1 relative flex flex-col min-w-0 min-h-0">
-             <Viewport3D />
-        </div>
-
-        {/* Inspector */}
-        <div className="flex-none">
-            <PropertyInspector />
+        {/* 3D Viewport - Half of remaining space */}
+        <div style={{
+          flex: 1,
+          position: 'relative',
+          overflow: 'hidden',
+          minWidth: 0
+        }}>
+          <Viewport3D />
         </div>
       </div>
+      
+      {/* Right Inspector - Fixed width */}
+      <PropertyInspector />
     </div>
   );
-};
+}
+
 export default App;

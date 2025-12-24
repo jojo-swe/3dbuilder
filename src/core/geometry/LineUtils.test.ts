@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { snapPointToNodes } from './LineUtils';
 import { createNode } from '../domain/DomainFactory';
-import { Node } from '../domain/types';
+import type { Node } from '../domain/types';
 
 describe('LineUtils', () => {
   describe('snapPointToNodes', () => {

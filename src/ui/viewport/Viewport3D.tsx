@@ -5,7 +5,12 @@ import { BuildingModel } from './BuildingModel';
 
 export const Viewport3D: React.FC = () => {
   return (
-    <div className="h-full w-full bg-gray-900 border-l border-gray-700 relative">
+    <div style={{ 
+      width: '100%', 
+      height: '100%', 
+      position: 'relative',
+      backgroundColor: '#111827'
+    }}>
         {/* Overlay / UI */}
         <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-black/50 text-white text-xs rounded backdrop-blur-sm pointer-events-none">
             3D Preview

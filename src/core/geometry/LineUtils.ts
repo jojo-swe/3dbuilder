@@ -1,5 +1,5 @@
-import { Vector2 } from './types';
-import { Node } from '../domain/types';
+import type { Vector2 } from './types';
+import type { Node } from '../domain/types';
 import { Vector2Math } from './Vector2Math';
 
 /**

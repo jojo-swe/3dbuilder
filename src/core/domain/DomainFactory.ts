@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Node, Wall, EntityId } from './types';
+import type { Node, Wall, EntityId } from './types';
 
 /**
  * Creates a new Node entity.

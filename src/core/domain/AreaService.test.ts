@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { AreaService } from './AreaService';
 import { createWall, createNode } from './DomainFactory';
-import { Project, Node, Wall, EntityId } from './types';
+import type { Project } from './types';
 
 describe('AreaService', () => {
     it('should calculate area for a simple room', () => {

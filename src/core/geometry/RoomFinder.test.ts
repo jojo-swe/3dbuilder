@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { RoomFinder, buildGraph } from './RoomFinder';
 import { createWall, createNode } from '../domain/DomainFactory';
-import { Wall, Node, EntityId } from '../domain/types';
+import type { Wall, Node, EntityId } from '../domain/types';
 
 describe('RoomFinder', () => {
   describe('buildGraph', () => {

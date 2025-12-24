@@ -57,6 +57,14 @@ html,
   position: relative;
   overflow: hidden;
   cursor: crosshair;
+  height: 100%;
+}
+
+.viewport-3d {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  height: 100%;
 }
 
 .svg-canvas {
