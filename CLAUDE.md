@@ -2,59 +2,268 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Product Context
+
+This is a **professional-grade 3D house builder** for DIY home builders and renovators in Sweden. The 2D floor plan is the single source of truth — 3D views, area calculations, and municipality-ready building permit (bygglov) documents are all derived from it.
+
 ## Build & Development Commands
 
 ```bash
-npm run dev          # Start Vite dev server with HMR
-npm run build        # TypeScript compile + Vite production build
-npm run lint         # ESLint
-npm run test         # Vitest (watch mode)
-npm run test:coverage # Vitest with coverage
-npx vitest run src/core/geometry/RoomFinder.test.ts  # Run single test file
+npm run dev           # Start Vite dev server with HMR
+npm run build         # TypeScript compile (tsc -b) + Vite production build
+npm run lint          # ESLint (flat config, TypeScript + React Hooks plugins)
+npm run preview       # Preview production build locally
+npm run test          # Vitest in watch mode
+npm run test:coverage # Vitest with v8 coverage report
+
+# Run a single test file
+npx vitest run src/core/geometry/RoomFinder.test.ts
 ```
 
 ## Architecture Overview
 
-This is a **floor plan editor** with real-time 3D preview, built with React + TypeScript + Vite. Users draw walls in a 2D SVG editor, and rooms are automatically detected and rendered in a synchronized 3D viewport.
+Built with **React 19 + TypeScript + Vite**. The app is split into a framework-agnostic `core` and a React `ui` layer. 3D rendering uses Three.js via React Three Fiber.
 
-### Core Domain Model (`src/core/domain/types.ts`)
+### Core Principles
 
-The data model uses a node-edge graph structure:
-- **Node**: A point (x, y) where walls can connect
-- **Wall**: An edge between two nodes with thickness, height, and material
-- **Room**: A closed loop of walls (auto-detected, not manually created)
-- **Opening**: A door/window placed along a wall at a distance from start
-- **Floor**: Groups walls and rooms by level (elevation)
-- **Project**: Root container holding all entities as `Record<EntityId, Entity>` maps
+- **Floor Plan is King**: The 2D geometry is the single source of truth. 3D is a derived view.
+- **Deterministic**: `f(Input) = Output`. No side effects in geometry/domain code.
+- **Layered dependency**: `ui` → `state` → `domain` → `geometry`. Lower layers never import from higher ones.
 
-### State Management (`src/core/state/store.ts`)
+### Data Flow
 
-Single Zustand store with Immer middleware. Key patterns:
-- All entity mutations go through store actions (`addWall`, `moveNode`, etc.)
-- Room detection runs automatically when walls are added via `RoomFinder.findRooms()`
-- Entity references use string IDs, not object references
+```
+User click → FloorPlanEditor → useEditorStore action
+  → Zustand/Immer mutates project
+  → addWall triggers RoomFinder.findRooms() (auto room detection)
+  → React re-renders SVG overlays + Three.js scene
+```
 
-### Geometry Engine (`src/core/geometry/`)
+## Directory Structure
 
-- **RoomFinder**: Detects closed loops using graph traversal with the "Left Hand Rule" (CCW winding). Builds adjacency list with directed edges sorted by angle.
-- **PolygonUtils**: Shoelace area calculation, winding order detection
-- **Vector2Math**: 2D vector operations, snapping, projections
-- **LineUtils**: Segment intersection, point-to-line distance
+```
+src/
+├── core/
+│   ├── geometry/       # Pure math — no building concepts
+│   │   ├── types.ts        # Vector2, LineSegment, Polygon, EPSILON
+│   │   ├── Vector2Math.ts  # 2D vector ops, snap, projections
+│   │   ├── PolygonUtils.ts # Shoelace area, winding order
+│   │   ├── LineUtils.ts    # Segment snapping utilities
+│   │   └── RoomFinder.ts   # Graph-traversal room detection algorithm
+│   ├── domain/         # Building entities — uses geometry
+│   │   ├── types.ts        # EntityId, Node, Wall, Room, Opening, Floor, Project
+│   │   ├── Bygglov.ts      # Swedish building permit data (SS 21054:2020)
+│   │   ├── DomainFactory.ts # createNode(), createWall() factory functions
+│   │   ├── RoomUtils.ts    # getPolygon(), toSvgPath() for rooms
+│   │   └── AreaService.ts  # calculateAreas() — total & per-room
+│   └── state/
+│       └── store.ts    # Single Zustand + Immer store (useEditorStore)
+└── ui/
+    ├── editor/
+    │   ├── FloorPlanEditor.tsx  # SVG 2D editor, wall/opening drawing
+    │   ├── Toolbar.tsx          # Tool selector (select/wall/room/opening)
+    │   └── PropertyInspector.tsx # Right panel — wall/room property editing
+    └── viewport/
+        ├── Viewport3D.tsx       # React Three Fiber canvas, lighting, OrbitControls
+        └── BuildingModel.tsx    # WallMesh + RoomMesh — extrudes 2D plan to 3D
+```
 
-### UI Components
+## Core Domain Model (`src/core/domain/types.ts`)
 
-- **FloorPlanEditor** (`src/ui/editor/`): SVG-based 2D editor with grid snap. Uses `viewBox` coordinates in meters (20x15m default view). Mouse position → SVG coordinates via `getScreenCTM().inverse()`.
-- **Viewport3D** (`src/ui/viewport/`): Three.js via React Three Fiber. `BuildingModel` extrudes walls to 3D geometry.
-- **Toolbar/PropertyInspector**: Tool selection and entity property editing
+Node-edge graph structure. All entities are stored as `Record<EntityId, Entity>` maps in the Project:
 
-### Bygglov Extension (`src/core/domain/Bygglov.ts`)
+```typescript
+type EntityId = string; // UUID v4
 
-Swedish building permit (bygglov) data structures. Area types follow SS 21054:2020 standard:
-- BYA (footprint), BTA (gross), BOA (living), BIA (auxiliary)
+interface Node     { id, x, y }                                          // connection point
+interface Wall     { id, startNodeId, endNodeId, thickness, height, material? } // edge
+interface Room     { id, name, boundaryWallIds, floorId }                // auto-detected loop
+interface Opening  { id, wallId, distFromStart, width, height, altitude, type } // door/window
+interface Floor    { id, name, levelIndex, elevation, wallIds, roomIds } // multi-storey grouping
+interface Project  { id, name, nodes, walls, rooms, openings, floors, version, bygglov? }
+
+type MaterialType = 'plaster_white' | 'brick_red' | 'wood_panel';
+type OpeningType  = 'window' | 'door';
+```
+
+**Default wall values** (defined in `store.ts`): `thickness: 0.2m`, `height: 2.4m`
+**Default opening values** (defined in `FloorPlanEditor.tsx`): `width: 0.9m`, `height: 2.1m`, `type: 'door'`
+
+## State Management (`src/core/state/store.ts`)
+
+Single `useEditorStore` created with Zustand + Immer middleware. Immer allows mutable-style writes inside `set()`.
+
+### State shape
+
+```typescript
+interface EditorState {
+  project: Project;         // Full domain model
+  selectedIds: EntityId[];  // Current selection
+  activeTool: ToolType;     // 'select' | 'wall' | 'room' | 'opening'
+  snapGridSize: number;     // Snap grid in meters (default 0.1)
+}
+```
+
+### Actions
+
+| Action | Description |
+|--------|-------------|
+| `createProject()` | Resets project, creates initial Ground Floor |
+| `addNode(x, y)` | Creates node, returns its ID |
+| `addWall(startId, endId, floorId)` | Creates wall, **triggers room auto-detection** |
+| `addOpening(opening)` | Adds door/window directly to openings map |
+| `updateWall(id, updates)` | Partial wall update via `Object.assign` |
+| `updateRoom(id, updates)` | Partial room update via `Object.assign` |
+| `moveNode(id, x, y)` | Repositions a node |
+| `removeWall(id)` | Removes wall and its floor reference |
+| `removeNode(id)` | Removes node (does not cascade to walls — known limitation) |
+| `setTool(tool)` | Changes active tool |
+| `select(ids)` | Updates selection |
+
+**Room auto-detection in `addWall`**: After adding a wall, the store rebuilds all rooms for that floor by running `RoomFinder.findRooms()` on the floor's walls, deleting old rooms, and creating new ones.
+
+## Geometry Engine (`src/core/geometry/`)
+
+All geometry code is pure functions — no state, no imports from `domain` or `ui`.
+
+### RoomFinder (`RoomFinder.ts`)
+
+The most important algorithm. Detects closed loops (rooms) using a directed graph traversal:
+
+1. **`buildGraph(nodes, walls)`**: Creates a directed adjacency list. Each wall adds two directed edges (forward and backward). Edges at each node are **sorted by angle** (ascending).
+2. **`RoomFinder.findRooms(nodes, walls)`**: Traverses all unvisited directed edges. At each node, finds the "turn left" next edge by looking at the edge *before* the back-edge in the angle-sorted list (index `backEdgeIdx - 1`, wrapping CCW). Loops with CCW winding (positive area in math coords) are kept as rooms; CW loops are exterior boundaries and discarded. Requires `pathWalls.length > 2` (minimum triangle).
+
+### Vector2Math (`Vector2Math.ts`)
+
+Key operations: `add`, `subtract`, `scale`, `magnitude`, `distance`, `normalize`, `dot`, `cross`, `equals` (with EPSILON tolerance), `snap(point, gridSize)`, `closestPointOnSegment(start, end, point)`, `angle(from, to)`.
+
+### PolygonUtils (`PolygonUtils.ts`)
+
+- `area(polygon)` — Shoelace formula; positive = CCW in math coords
+- `isClockwise(polygon)` — Returns true if CW (i.e., exterior boundary)
+
+### LineUtils (`LineUtils.ts`)
+
+- `snapPointToNodes(point, nodes, tolerance)` — Snaps a point to any nearby node within tolerance
+
+## UI Components
+
+### FloorPlanEditor (`src/ui/editor/FloorPlanEditor.tsx`)
+
+SVG-based 2D editor. The SVG `viewBox` is in **meters** (default `0 0 20 15`).
+
+**Coordinate conversion**: `getMouseCoords()` uses `svg.getScreenCTM().inverse()` to transform screen pixels → SVG/meter coordinates.
+
+**Grid**: Two-level SVG pattern — 1m minor grid (light) and 5m major grid (darker). `NODE_RADIUS = 0.15m`.
+
+**Tool behaviors**:
+- `wall`: First click creates two overlapping nodes (start + temp); mouse move repositions temp node via `moveNode`; each subsequent click finalizes a wall and creates a new temp node, forming a chain. ESC or right-click cancels and removes the dangling temp node/wall.
+- `opening`: Mouse proximity search (< 0.5m) finds the closest wall via `closestPointOnSegment`; shows a live preview rect; click places a door `Opening`.
+- `select`: Click on wall/room sets `selectedIds`.
+
+**Rendering order** (bottom to top): grid background → room fills → walls → openings → nodes → status bar overlay.
+
+### Toolbar (`src/ui/editor/Toolbar.tsx`)
+
+Left 64px vertical strip. Buttons for Select, Wall, Room, Opening tools + New Project. Uses `lucide-react` icons.
+
+### PropertyInspector (`src/ui/editor/PropertyInspector.tsx`)
+
+Right 256px panel. Shows properties of the first selected entity:
+- **Wall**: thickness (m), height (m), material dropdown (`plaster_white | brick_red | wood_panel`)
+- **Room**: name input, area display (m², read-only), area type selector (BOA/BIA — currently disabled)
+
+Displays entity UUID (first 8 chars).
+
+### Viewport3D (`src/ui/viewport/Viewport3D.tsx`)
+
+React Three Fiber `<Canvas>` with:
+- Camera: position `[5, 5, 5]`, FOV 45
+- Lighting: `ambientLight` (intensity 0.5) + `directionalLight` with shadows
+- `<OrbitControls>` from `@react-three/drei`
+- Grid helper + "city" environment preset
+- Background: `#111827`
+
+### BuildingModel (`src/ui/viewport/BuildingModel.tsx`)
+
+Renders `WallMesh` and `RoomMesh` for every entity in the project.
+
+**Coordinate mapping** (2D → 3D): `x → X`, `-y → Z`, height extrusion → `Y`. SVG Y-down is inverted for 3D.
+
+**WallMesh**: Positions a `<group>` at the wall midpoint, rotated to the wall angle. Iterates through wall length, alternating between solid `<boxGeometry>` segments and opening gaps (sill + lintel + transparent glass placeholder). Material color from `wall.material`.
+
+**RoomMesh**: Creates a `THREE.Shape` from polygon vertices (using `-y`), converts to `<shapeGeometry>`, rotated `-90°` on X to lie flat on the ground plane (`y = 0.01`).
+
+## Bygglov Extension (`src/core/domain/Bygglov.ts`)
+
+Swedish building permit data structures following **SS 21054:2020**:
+
+```typescript
+type AreaType = 'BYA' | 'BTA' | 'BOA' | 'BIA';
+// BYA = byggrätt/footprint, BTA = gross, BOA = living area, BIA = auxiliary
+```
+
+`BygglovData` includes municipality info, technical specs, and north direction. Attached to `Project` as optional `project.bygglov`.
+
+## Testing Conventions
+
+- Framework: **Vitest** with `describe` / `it` / `expect`
+- Test files are **collocated** with source: `Foo.ts` → `Foo.test.ts`
+- **No DOM** required for geometry/domain tests — pure unit tests
+- Test data is built using `DomainFactory` helpers (`createNode`, `createWall`)
+- Test coverage run with `vitest run --coverage` (v8 provider)
+
+Example test pattern:
+```typescript
+import { describe, it, expect } from 'vitest';
+import { RoomFinder } from './RoomFinder';
+import { createNode, createWall } from '../domain/DomainFactory';
+
+describe('RoomFinder', () => {
+  it('should find a simple rectangular room', () => {
+    // build nodes & walls via factory, call findRooms, assert loop count & contents
+  });
+});
+```
+
+## Code Style Guide
+
+From `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guide):
+
+- **`const`/`let` only** — `var` is forbidden
+- **Named exports only** — no default exports
+- **No `any`** — prefer `unknown` or specific types
+- **No `#private` fields** — use TypeScript `private` modifier
+- **No `public` modifier** — it is the default; only add `private`/`protected`
+- **Single quotes** for strings; template literals for interpolation
+- **Triple equals** (`===`, `!==`) always
+- **Avoid type assertions** (`as T`, `!`) — justify if used
+- **Naming**: `UpperCamelCase` for types/classes/interfaces, `lowerCamelCase` for variables/functions, `CONSTANT_CASE` for global constants
+- **Semicolons**: Always explicit — never rely on ASI
+- **Comments**: `/** JSDoc */` for public API docs, `//` for implementation notes; never restate the code
 
 ## Key Conventions
 
-- Units are **meters** throughout (wall thickness, coordinates, snap grid)
-- All coordinates use standard math convention (Y increases upward in geometry, though SVG renders Y-down)
-- Entity IDs are UUIDs generated via `uuid` package
-- Tool state machine: `select | wall | room | opening`
+- **Units**: Meters throughout — coordinates, wall dimensions, snap grid, node radius
+- **Coordinate system**: Standard math convention (Y increases upward) in geometry code. SVG renders Y-down (no transform needed since viewBox units match). Three.js maps `(x, y)` → `(X, -y, Z)` with Y as vertical.
+- **Entity IDs**: UUID v4 via `uuid` package (`v4 as uuidv4`)
+- **Tool state machine**: `select | wall | room | opening`
+- **Entity storage**: All entities in `Record<EntityId, Entity>` maps on `Project` — never arrays
+- **No object references**: Cross-entity links use string IDs only (e.g., `wall.startNodeId`, not `wall.startNode`)
+- **Room creation**: Rooms are never manually created — they are always auto-detected by `RoomFinder` when walls change
+- **Immer pattern**: Inside Zustand `set()`, mutate `state` directly; Immer produces the new immutable state
+
+## Technology Stack
+
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Language | TypeScript (strict) | ~5.9.3 |
+| UI Framework | React | ^19.2.0 |
+| Build Tool | Vite | ^7.2.4 |
+| 3D Engine | Three.js | ^0.182.0 |
+| 3D React Bindings | @react-three/fiber + @react-three/drei | ^9.4.2 / ^10.7.7 |
+| State Management | Zustand + Immer | ^5.0.9 / ^11.1.0 |
+| Icons | Lucide React | ^0.562.0 |
+| ID Generation | uuid | ^13.0.0 |
+| Testing | Vitest + @vitest/coverage-v8 | ^4.0.16 |
+| Linting | ESLint (flat config) + typescript-eslint | ^9.39.1 |
