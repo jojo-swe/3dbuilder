@@ -14,11 +14,13 @@ export const FloorPlanEditor: React.FC = () => {
   const project = useEditorStore(state => state.project);
   const activeTool = useEditorStore(state => state.activeTool);
   const selectedIds = useEditorStore(state => state.selectedIds);
+  const activeFloorId = useEditorStore(state => state.activeFloorId);
   const { addNode, addWall, addOpening, moveNode, removeWall, removeNode } = useEditorStore();
   const snapGridSize = useEditorStore(state => state.snapGridSize);
 
   // Refs
   const svgRef = useRef<SVGSVGElement>(null);
+  const previewWallIdRef = useRef<string | null>(null);
 
   // Interaction State
   const [tempNodeId, setTempNodeId] = useState<string | null>(null);
@@ -40,6 +42,22 @@ export const FloorPlanEditor: React.FC = () => {
     const svgPoint = pt.matrixTransform(ctm.inverse());
     return { x: svgPoint.x, y: svgPoint.y };
   }, []);
+
+  // Returns the ID of an existing node within snapping tolerance of pos, excluding given IDs
+  const findExistingNode = useCallback((pos: { x: number; y: number }, exclude: Set<string>): string | null => {
+    const SNAP_TOLERANCE = NODE_RADIUS * 2;
+    let best: string | null = null;
+    let bestDist = SNAP_TOLERANCE;
+    Object.values(project.nodes).forEach(node => {
+      if (exclude.has(node.id)) return;
+      const d = Vector2Math.distance(pos, node);
+      if (d < bestDist) {
+        bestDist = d;
+        best = node.id;
+      }
+    });
+    return best;
+  }, [project.nodes]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     const rawPos = getMouseCoords(e);
@@ -98,46 +116,58 @@ export const FloorPlanEditor: React.FC = () => {
     }
 
     if (activeTool === 'wall') {
+      const floorId = activeFloorId ?? Object.values(project.floors)[0]?.id;
+      if (!floorId) return;
+
       if (activeWallStartId && tempNodeId) {
-        // Continue wall chain
-        setActiveWallStartId(tempNodeId);
-        const nextTemp = addNode(snapped.x, snapped.y);
-        setTempNodeId(nextTemp);
-        
-        const firstFloor = Object.values(project.floors)[0];
-        if (firstFloor) {
-          addWall(tempNodeId, nextTemp, firstFloor.id);
+        // Zero-length check: ignore click if too close to the previous chain node
+        const chainStartNode = project.nodes[activeWallStartId];
+        if (chainStartNode && Vector2Math.distance(snapped, chainStartNode) < snapGridSize) return;
+
+        // Check for nearby existing node to snap to (excluding the floating temp)
+        const nearbyId = findExistingNode(snapped, new Set([tempNodeId]));
+
+        if (nearbyId) {
+          // Snap to existing node: swap out temp for the real node
+          if (previewWallIdRef.current) removeWall(previewWallIdRef.current);
+          removeNode(tempNodeId);
+          addWall(activeWallStartId, nearbyId, floorId);
+          // Continue chain from the snapped node
+          const nextTemp = addNode(snapped.x, snapped.y);
+          setActiveWallStartId(nearbyId);
+          setTempNodeId(nextTemp);
+          previewWallIdRef.current = addWall(nearbyId, nextTemp, floorId);
+        } else {
+          // Normal: promote temp to chain start, create new preview
+          const prevTempId = tempNodeId;
+          setActiveWallStartId(prevTempId);
+          const nextTemp = addNode(snapped.x, snapped.y);
+          setTempNodeId(nextTemp);
+          previewWallIdRef.current = addWall(prevTempId, nextTemp, floorId);
         }
       } else {
-        // Start new wall chain
-        const newNodeId = addNode(snapped.x, snapped.y);
-        setActiveWallStartId(newNodeId);
-        
+        // Start new wall chain; snap first click to existing node if nearby
+        const startId = findExistingNode(snapped, new Set()) ?? addNode(snapped.x, snapped.y);
+        setActiveWallStartId(startId);
         const tempId = addNode(snapped.x, snapped.y);
         setTempNodeId(tempId);
-        
-        const firstFloor = Object.values(project.floors)[0];
-        if (firstFloor) {
-          addWall(newNodeId, tempId, firstFloor.id);
-        }
+        previewWallIdRef.current = addWall(startId, tempId, floorId);
       }
     }
-  }, [activeTool, openingPreview, activeWallStartId, tempNodeId, project.floors, snapGridSize, addNode, addWall, addOpening, getMouseCoords]);
+  }, [activeTool, openingPreview, activeWallStartId, tempNodeId, activeFloorId, project.floors, project.nodes, snapGridSize, addNode, addWall, addOpening, removeWall, removeNode, findExistingNode, getMouseCoords]);
 
   const cancelOperation = useCallback(() => {
-    if (activeTool === 'wall' && activeWallStartId && tempNodeId) {
-      const wallId = Object.values(project.walls).find(w => 
-        (w.startNodeId === activeWallStartId && w.endNodeId === tempNodeId) ||
-        (w.startNodeId === tempNodeId && w.endNodeId === activeWallStartId)
-      )?.id;
-      
-      if (wallId) removeWall(wallId);
+    if (activeTool === 'wall' && tempNodeId) {
+      if (previewWallIdRef.current) {
+        removeWall(previewWallIdRef.current);
+        previewWallIdRef.current = null;
+      }
       removeNode(tempNodeId);
     }
     setActiveWallStartId(null);
     setTempNodeId(null);
     setOpeningPreview(null);
-  }, [activeTool, activeWallStartId, tempNodeId, project.walls, removeWall, removeNode]);
+  }, [activeTool, tempNodeId, removeWall, removeNode]);
 
   // Keyboard handler
   React.useEffect(() => {

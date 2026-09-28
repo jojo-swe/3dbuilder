@@ -61,18 +61,14 @@ export const RoomUtils = {
         const w = project.walls[wallIds[i]];
         if (!w) continue;
         
-        const nextNodeId: string = (w.startNodeId === previousNodeId) ? w.endNodeId : w.startNodeId;
-        
-        // Safety check: did we actually match?
-        if (nextNodeId === previousNodeId) {
-             // This implies w.start == w.end ?? 
-             // Or we didn't match previous.
-             // If w.start != prev and w.end != prev, we have a gap.
-             if (w.startNodeId !== previousNodeId && w.endNodeId !== previousNodeId) {
-                 // Disconnected
-                 return nodes;
-             }
+        // Verify this wall actually connects to the previous node
+        const isStartPrev = w.startNodeId === previousNodeId;
+        const isEndPrev = w.endNodeId === previousNodeId;
+        if (!isStartPrev && !isEndPrev) {
+            // Disconnected wall in boundary list — return what we have
+            return nodes;
         }
+        const nextNodeId = isStartPrev ? w.endNodeId : w.startNodeId;
         
         const node = project.nodes[nextNodeId];
         if (node) nodes.push({ x: node.x, y: node.y });

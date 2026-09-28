@@ -68,11 +68,15 @@ export const PropertyInspector: React.FC = () => {
 
              <div className="flex flex-col gap-1">
                <label htmlFor="wall-mat" className="text-sm font-medium text-gray-700">Material</label>
-               <select 
+               <select
                  id="wall-mat"
                  className="inspector-input bg-white"
                  value={wall.material || 'plaster_white'}
-                 onChange={(e) => updateWall(id, { material: e.target.value as MaterialType })}
+                 onChange={(e) => {
+                   const VALID_MATERIALS: MaterialType[] = ['plaster_white', 'brick_red', 'wood_panel'];
+                   const val = e.target.value as MaterialType;
+                   if (VALID_MATERIALS.includes(val)) updateWall(id, { material: val });
+                 }}
                >
                   <option value="plaster_white">Plaster (White)</option>
                   <option value="brick_red">Brick (Red)</option>
