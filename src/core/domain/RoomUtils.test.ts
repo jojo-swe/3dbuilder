@@ -151,10 +151,10 @@ describe('RoomUtils', () => {
         floorId: 'floor1'
       };
 
-      // Should not throw and returns whatever nodes it could collect
+      // Stops at the gap and returns only the vertices collected before it
       const polygon = RoomUtils.getPolygon(project, room);
-      expect(polygon).toBeDefined();
-      expect(Array.isArray(polygon)).toBe(true);
+      expect(polygon).toEqual([{ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 5, y: 5 }]);
+      expect(polygon).not.toContainEqual({ x: 20, y: 20 });
     });
   });
 

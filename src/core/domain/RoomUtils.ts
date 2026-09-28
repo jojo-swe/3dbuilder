@@ -62,13 +62,13 @@ export const RoomUtils = {
         if (!w) continue;
         
         // Verify this wall actually connects to the previous node
-        const isStartPrev = w.startNodeId === previousNodeId;
-        const isEndPrev = w.endNodeId === previousNodeId;
+        const isStartPrev: boolean = w.startNodeId === previousNodeId;
+        const isEndPrev: boolean = w.endNodeId === previousNodeId;
         if (!isStartPrev && !isEndPrev) {
             // Disconnected wall in boundary list — return what we have
             return nodes;
         }
-        const nextNodeId = isStartPrev ? w.endNodeId : w.startNodeId;
+        const nextNodeId: EntityId = isStartPrev ? w.endNodeId : w.startNodeId;
         
         const node = project.nodes[nextNodeId];
         if (node) nodes.push({ x: node.x, y: node.y });

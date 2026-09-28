@@ -101,6 +101,7 @@ interface EditorState {
   selectedIds: EntityId[];  // Current selection
   activeTool: ToolType;     // 'select' | 'wall' | 'room' | 'opening'
   snapGridSize: number;     // Snap grid in meters (default 0.1)
+  activeFloorId: EntityId | null; // Floor new walls are drawn on; set by createProject
 }
 ```
 
@@ -108,19 +109,21 @@ interface EditorState {
 
 | Action | Description |
 |--------|-------------|
-| `createProject()` | Resets project, creates initial Ground Floor |
+| `createProject()` | Resets project, creates initial Ground Floor, sets `activeFloorId`, clears selection |
 | `addNode(x, y)` | Creates node, returns its ID |
 | `addWall(startId, endId, floorId)` | Creates wall, **triggers room auto-detection** |
 | `addOpening(opening)` | Adds door/window directly to openings map |
 | `updateWall(id, updates)` | Partial wall update via `Object.assign` |
 | `updateRoom(id, updates)` | Partial room update via `Object.assign` |
 | `moveNode(id, x, y)` | Repositions a node |
-| `removeWall(id)` | Removes wall and its floor reference |
-| `removeNode(id)` | Removes node (does not cascade to walls — known limitation) |
+| `removeWall(id)` | Cascades: deletes the wall's openings and floor reference, then **re-runs room detection** |
+| `removeNode(id)` | Cascades: deletes every attached wall (and their openings), then **re-runs room detection** per affected floor |
 | `setTool(tool)` | Changes active tool |
 | `select(ids)` | Updates selection |
 
-**Room auto-detection in `addWall`**: After adding a wall, the store rebuilds all rooms for that floor by running `RoomFinder.findRooms()` on the floor's walls, deleting old rooms, and creating new ones.
+**Room auto-detection**: `addWall`, `removeWall` and `removeNode` all rebuild the rooms of every affected floor by running `RoomFinder.findRooms()` on that floor's walls, deleting old rooms, and creating new ones. Room IDs are therefore **not stable** across wall edits — don't hold on to a room ID (e.g. in `selectedIds`) after changing walls.
+
+**Invariant**: after any store action, no wall references a missing node and no opening references a missing wall. Any new deletion action must preserve this (see `store.test.ts`).
 
 ## Geometry Engine (`src/core/geometry/`)
 
@@ -157,7 +160,9 @@ SVG-based 2D editor. The SVG `viewBox` is in **meters** (default `0 0 20 15`).
 **Grid**: Two-level SVG pattern — 1m minor grid (light) and 5m major grid (darker). `NODE_RADIUS = 0.15m`.
 
 **Tool behaviors**:
-- `wall`: First click creates two overlapping nodes (start + temp); mouse move repositions temp node via `moveNode`; each subsequent click finalizes a wall and creates a new temp node, forming a chain. ESC or right-click cancels and removes the dangling temp node/wall.
+- `wall`: First click creates two overlapping nodes (start + temp); mouse move repositions temp node via `moveNode`; each subsequent click finalizes a wall and creates a new temp node, forming a chain. The in-progress preview wall's ID is kept in `previewWallIdRef`. ESC or right-click cancels and removes the dangling temp node/wall. Walls are drawn on `activeFloorId`.
+  - **Node snapping**: a click within `NODE_RADIUS * 2` of an existing node reuses that node (via `findExistingNode`) instead of creating a duplicate. This is what lets a chain close into a room.
+  - **Zero-length guard**: a click within `snapGridSize` of the previous chain node is ignored.
 - `opening`: Mouse proximity search (< 0.5m) finds the closest wall via `closestPointOnSegment`; shows a live preview rect; click places a door `Opening`.
 - `select`: Click on wall/room sets `selectedIds`.
 
@@ -190,7 +195,7 @@ Renders `WallMesh` and `RoomMesh` for every entity in the project.
 
 **Coordinate mapping** (2D → 3D): `x → X`, `-y → Z`, height extrusion → `Y`. SVG Y-down is inverted for 3D.
 
-**WallMesh**: Positions a `<group>` at the wall midpoint, rotated to the wall angle. Iterates through wall length, alternating between solid `<boxGeometry>` segments and opening gaps (sill + lintel + transparent glass placeholder). Material color from `wall.material`.
+**WallMesh**: Positions a `<group>` at the wall midpoint, rotated to the wall angle. Iterates through wall length, alternating between solid `<boxGeometry>` segments and opening gaps (sill + lintel + transparent glass placeholder). Material color from `wall.material`. Openings that extend past either end of the wall are skipped (not rendered). Overlapping openings are **not** handled yet.
 
 **RoomMesh**: Creates a `THREE.Shape` from polygon vertices (using `-y`), converts to `<shapeGeometry>`, rotated `-90°` on X to lie flat on the ground plane (`y = 0.01`).
 
@@ -211,7 +216,12 @@ type AreaType = 'BYA' | 'BTA' | 'BOA' | 'BIA';
 - Test files are **collocated** with source: `Foo.ts` → `Foo.test.ts`
 - **No DOM** required for geometry/domain tests — pure unit tests
 - Test data is built using `DomainFactory` helpers (`createNode`, `createWall`)
+- Store tests (`src/core/state/store.test.ts`) drive the real Zustand store via `useEditorStore.getState()`; call `createProject()` in `beforeEach` to reset it
+- UI components (`src/ui/`) currently have no tests
 - Test coverage run with `vitest run --coverage` (v8 provider)
+- Before committing, run `npm run test -- --run`, `npm run build` (includes `tsc -b`) and `npm run lint`. `tsc` catches strict-mode errors that Vitest does not, because Vitest strips types without checking them
+
+**Environment note**: `@rollup/rollup-win32-x64-msvc` is in `optionalDependencies` so `npm install` succeeds on Linux/macOS. Do not move it back to `devDependencies`.
 
 Example test pattern:
 ```typescript
