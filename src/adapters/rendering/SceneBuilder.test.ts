@@ -8,6 +8,7 @@ import {
 } from './SceneBuilder';
 import { buildWallRenderData } from './wallGeometry';
 import { buildFloorRenderData } from './floorGeometry';
+import { planToGround } from './coordinates';
 import { createNode, createWall } from '../../core/domain/DomainFactory';
 import { useEditorStore } from '../../core/state/store';
 import type { Project, Room } from '../../core/domain/types';
@@ -62,6 +63,34 @@ describe('SceneBuilder', () => {
       expect(mesh.rotation.x).toBeCloseTo(-Math.PI / 2);
       expect(mesh.position.y).toBeGreaterThan(0);
       expect(mesh.geometry).toBeInstanceOf(THREE.ShapeGeometry);
+    });
+
+    it('lands every floor vertex where planToGround puts the matching plan point (same mapping as walls)', () => {
+      const plan = [
+        { x: 0, y: 0 },
+        { x: 4, y: 0 },
+        { x: 4, y: 3 },
+        { x: 0, y: 3 },
+      ];
+      const room: Room = { id: 'r1', name: 'r', boundaryWallIds: [], floorId: 'f1' };
+      const data = buildFloorRenderData(room, plan);
+      if (!data) throw new Error('expected data');
+
+      const mesh = buildFloorMesh(data);
+      mesh.updateMatrixWorld(true);
+      const pos = mesh.geometry.getAttribute('position');
+      const world = Array.from({ length: pos.count }, (_, i) =>
+        new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld),
+      );
+
+      for (const p of plan) {
+        const expected = planToGround(p);
+        const hit = world.some(
+          (v) => Math.abs(v.x - expected.x) < 1e-6 && Math.abs(v.z - expected.z) < 1e-6,
+        );
+        expect(hit, `plan (${p.x}, ${p.y}) should map to world (${expected.x}, ${expected.z})`).toBe(true);
+      }
+      world.forEach((v) => expect(v.z).toBeLessThanOrEqual(1e-6)); // plan y >= 0 → world Z <= 0
     });
   });
 

@@ -11,7 +11,7 @@ const room: Room = {
 
 describe('floorGeometry', () => {
   describe('buildFloorShapePoints', () => {
-    it('maps polygon vertices with -y (SVG Y-down inverted for the flat floor shape)', () => {
+    it('keeps plan y unchanged (the -90° X rotation performs the -y -> Z flip)', () => {
       const points = buildFloorShapePoints([
         { x: 0, y: 0 },
         { x: 4, y: 0 },
@@ -21,8 +21,8 @@ describe('floorGeometry', () => {
       expect(points).toEqual([
         { x: 0, y: 0 },
         { x: 4, y: 0 },
-        { x: 4, y: -3 },
-        { x: 0, y: -3 },
+        { x: 4, y: 3 },
+        { x: 0, y: 3 },
       ]);
     });
   });
@@ -45,7 +45,7 @@ describe('floorGeometry', () => {
       expect(data.shapePoints).toEqual([
         { x: 0, y: 0 },
         { x: 4, y: 0 },
-        { x: 4, y: -3 },
+        { x: 4, y: 3 },
       ]);
     });
   });
