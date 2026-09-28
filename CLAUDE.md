@@ -71,7 +71,8 @@ src/
     │   ├── Toolbar.tsx          # Tool selector (select/wall/room/opening)
     │   └── PropertyInspector.tsx # Right panel — wall/room property editing
     └── viewport/
-        ├── Viewport3D.tsx       # React Three Fiber canvas, lighting, OrbitControls
+        ├── Viewport3D.tsx       # React Three Fiber canvas, lighting, OrbitControls, failure fallbacks
+        ├── ErrorBoundary.tsx    # Reusable error boundary (works in DOM and R3F trees)
         └── BuildingModel.tsx    # Thin host: mounts buildSceneGroup(project) as a <primitive>
 ```
 
@@ -196,6 +197,12 @@ React Three Fiber `<Canvas>` with:
 - Grid helper + "city" environment preset
 - Background: `#111827`
 
+**Failure isolation** (a 3D problem must never blank the 2D editor):
+- `<Environment preset="city">` fetches its HDR from a CDN **at runtime**. It is wrapped in its own `Suspense` + `ErrorBoundary`, so a slow load doesn't hide the scene and a failed load (offline, blocked CDN) only drops reflections. R3F still reports the caught error via `reportError`, so an "Uncaught Error … .hdr" line in the console is expected and harmless.
+- WebGL2 support is checked up front with `WebGL.isWebGL2Available()`. R3F creates its renderer in an un-awaited async effect, so a missing context can't be caught by an error boundary. Without WebGL the pane shows a "3D preview is unavailable" fallback with a Retry button.
+- Any other error inside the `<Canvas>` is caught by an outer `ErrorBoundary` with the same fallback. Retry re-mounts the canvas.
+- Anything new that loads over the network inside the Canvas (textures, models, HDRs) needs the same `ErrorBoundary` + `Suspense` treatment.
+
 ### BuildingModel (`src/ui/viewport/BuildingModel.tsx`)
 
 Thin React host. Subscribes to `project`, calls `buildSceneGroup(project)` in a `useMemo`, mounts the result via `<primitive object={group} />`, and calls `disposeGroup` on the previous group when it changes. **Put 3D logic in `src/adapters/rendering/`, not here.**
@@ -231,7 +238,7 @@ type AreaType = 'BYA' | 'BTA' | 'BOA' | 'BIA';
 - **No DOM** required for geometry/domain tests — pure unit tests
 - Test data is built using `DomainFactory` helpers (`createNode`, `createWall`)
 - Store tests (`src/core/state/store.test.ts`) drive the real Zustand store via `useEditorStore.getState()`; call `createProject()` in `beforeEach` to reset it
-- UI components (`src/ui/`) currently have no tests; test 3D behaviour through the pure functions in `src/adapters/rendering/`
+- UI components (`src/ui/`) are mostly untested; test 3D behaviour through the pure functions in `src/adapters/rendering/`. Component tests that need a DOM put `// @vitest-environment jsdom` on the first line and use `@testing-library/react` (see `ErrorBoundary.test.tsx`)
 - End-to-end manual UI testing steps live in `.agents/skills/testing-3dbuilder/SKILL.md`
 - Test coverage run with `vitest run --coverage` (v8 provider)
 - Before committing, run `npm run test -- --run`, `npm run build` (includes `tsc -b`) and `npm run lint`. `tsc` catches strict-mode errors that Vitest does not, because Vitest strips types without checking them

@@ -24,5 +24,10 @@ Left toolbar (Select / Wall / Room / Opening / New Project) | 2D SVG editor (lef
 Draw 3 corners of a rectangle with the Wall tool, then click **on the first corner node** (within ~0.3 m). The wall tool snaps to that existing node, which closes the loop, and `Rooms:` in the status bar goes to 1. A blue room fill appears in 2D and a grey floor in 3D. The chain keeps going after closing, so press **ESC** to finish.
 If `Rooms:` stays 0, check that the closing click actually landed on the first node. Clicks within one grid step (0.1 m) of the previous node are ignored on purpose (zero-length wall guard).
 
+## Headless browsers / sandboxes
+- **WebGL**: headless Chromium has no GPU. Launch with `--use-angle=swiftshader --enable-unsafe-swiftshader` for a working 3D pane. Without it you should see the "3D preview is unavailable" fallback while the 2D editor keeps working, which is itself a useful check.
+- **HDR environment map**: `<Environment preset="city">` fetches `potsdamer_platz_1k.hdr` from a CDN. If the sandbox blocks it, the app still works (no reflections) and logs one expected "Uncaught Error … .hdr" plus a warning. To get reflections, serve a stand-in via request interception: a flat Radiance file `#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 32 +X 64\n` followed by 64×32×4 bytes. Don't use 1×1: tiny maps make three.js emit an invalid shader.
+- To reproduce the old blank-screen bug, abort `**/*.hdr` requests. On current code the editor must stay visible.
+
 ## Devin Secrets Needed
 None — runs fully locally, no auth.
