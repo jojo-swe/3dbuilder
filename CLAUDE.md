@@ -28,7 +28,7 @@ Built with **React 19 + TypeScript + Vite**. The app is split into a framework-a
 
 - **Floor Plan is King**: The 2D geometry is the single source of truth. 3D is a derived view.
 - **Deterministic**: `f(Input) = Output`. No side effects in geometry/domain code.
-- **Layered dependency**: `ui` → `state` → `domain` → `geometry`. Lower layers never import from higher ones.
+- **Layered dependency**: `ui` → `adapters` → `state` → `domain` → `geometry`. Lower layers never import from higher ones. `adapters/` never imports React.
 
 ### Data Flow
 
@@ -36,7 +36,7 @@ Built with **React 19 + TypeScript + Vite**. The app is split into a framework-a
 User click → FloorPlanEditor → useEditorStore action
   → Zustand/Immer mutates project
   → addWall triggers RoomFinder.findRooms() (auto room detection)
-  → React re-renders SVG overlays + Three.js scene
+  → React re-renders SVG overlays; BuildingModel rebuilds the scene via adapters/rendering
 ```
 
 ## Directory Structure
@@ -58,6 +58,13 @@ src/
 │   │   └── AreaService.ts  # calculateAreas() — total & per-room
 │   └── state/
 │       └── store.ts    # Single Zustand + Immer store (useEditorStore)
+├── adapters/
+│   └── rendering/      # Domain → Three.js. No React.
+│       ├── coordinates.ts   # planToGround / planToWorld / wallAngleY (2D plan → 3D world)
+│       ├── wallGeometry.ts  # buildWallRenderData — pure: wall + openings → box parts
+│       ├── floorGeometry.ts # buildFloorRenderData — pure: room polygon → floor shape
+│       ├── SceneBuilder.ts  # buildSceneGroup / disposeGroup — instantiates THREE objects
+│       └── index.ts         # Barrel export
 └── ui/
     ├── editor/
     │   ├── FloorPlanEditor.tsx  # SVG 2D editor, wall/opening drawing
@@ -65,7 +72,7 @@ src/
     │   └── PropertyInspector.tsx # Right panel — wall/room property editing
     └── viewport/
         ├── Viewport3D.tsx       # React Three Fiber canvas, lighting, OrbitControls
-        └── BuildingModel.tsx    # WallMesh + RoomMesh — extrudes 2D plan to 3D
+        └── BuildingModel.tsx    # Thin host: mounts buildSceneGroup(project) as a <primitive>
 ```
 
 ## Core Domain Model (`src/core/domain/types.ts`)
@@ -191,13 +198,20 @@ React Three Fiber `<Canvas>` with:
 
 ### BuildingModel (`src/ui/viewport/BuildingModel.tsx`)
 
-Renders `WallMesh` and `RoomMesh` for every entity in the project.
+Thin React host. Subscribes to `project`, calls `buildSceneGroup(project)` in a `useMemo`, mounts the result via `<primitive object={group} />`, and calls `disposeGroup` on the previous group when it changes. **Put 3D logic in `src/adapters/rendering/`, not here.**
 
-**Coordinate mapping** (2D → 3D): `x → X`, `-y → Z`, height extrusion → `Y`. SVG Y-down is inverted for 3D.
+## Rendering Adapter (`src/adapters/rendering/`)
 
-**WallMesh**: Positions a `<group>` at the wall midpoint, rotated to the wall angle. Iterates through wall length, alternating between solid `<boxGeometry>` segments and opening gaps (sill + lintel + transparent glass placeholder). Material color from `wall.material`. Openings that extend past either end of the wall are skipped (not rendered). Overlapping openings are **not** handled yet.
+Converts the domain model to Three.js in two stages, so the geometry math is testable without WebGL:
 
-**RoomMesh**: Creates a `THREE.Shape` from polygon vertices (using `-y`), converts to `<shapeGeometry>`, rotated `-90°` on X to lie flat on the ground plane (`y = 0.01`).
+1. **Pure render data** (`wallGeometry.ts`, `floorGeometry.ts`, `coordinates.ts`): plain objects (positions, box sizes, colors). No Three.js, no React. Unit-tested directly.
+2. **Instantiation** (`SceneBuilder.ts`): turns render data into `THREE.Group`/`THREE.Mesh`. `disposeGroup` frees geometries and materials, so always call it when discarding a group.
+
+**Coordinate mapping** (2D → 3D): `x → X`, `-y → Z`, height extrusion → `Y` (see `coordinates.ts`).
+
+**`buildWallRenderData`**: Returns `null` for a missing node or a wall shorter than 0.01 m. Otherwise it splits the wall lengthwise into `WallPart`s (`solid` segments around each opening, plus `sill` / `lintel` / translucent `glass` for the opening), positioned in the wall group's local frame with `+X` along the wall. Openings that extend past either end of the wall are skipped. Overlapping openings are **not** handled yet.
+
+**`buildFloorRenderData`**: Floor shape from the room polygon (`RoomUtils.getPolygon`), lying flat at `FLOOR_ELEVATION` (0.01 m). Shape points keep plan `y` **unchanged**, because the mesh's `-90°` X rotation already sends shape `(x, y)` to world `(x, 0, -y)`. Negating `y` as well mirrors floors away from their walls (this was a real bug). `SceneBuilder.test.ts` asserts floor vertices land on `planToGround`, so keep that test when changing the mapping.
 
 ## Bygglov Extension (`src/core/domain/Bygglov.ts`)
 
@@ -217,7 +231,8 @@ type AreaType = 'BYA' | 'BTA' | 'BOA' | 'BIA';
 - **No DOM** required for geometry/domain tests — pure unit tests
 - Test data is built using `DomainFactory` helpers (`createNode`, `createWall`)
 - Store tests (`src/core/state/store.test.ts`) drive the real Zustand store via `useEditorStore.getState()`; call `createProject()` in `beforeEach` to reset it
-- UI components (`src/ui/`) currently have no tests
+- UI components (`src/ui/`) currently have no tests; test 3D behaviour through the pure functions in `src/adapters/rendering/`
+- End-to-end manual UI testing steps live in `.agents/skills/testing-3dbuilder/SKILL.md`
 - Test coverage run with `vitest run --coverage` (v8 provider)
 - Before committing, run `npm run test -- --run`, `npm run build` (includes `tsc -b`) and `npm run lint`. `tsc` catches strict-mode errors that Vitest does not, because Vitest strips types without checking them
 
@@ -255,7 +270,7 @@ From `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guide):
 ## Key Conventions
 
 - **Units**: Meters throughout — coordinates, wall dimensions, snap grid, node radius
-- **Coordinate system**: Standard math convention (Y increases upward) in geometry code. SVG renders Y-down (no transform needed since viewBox units match). Three.js maps `(x, y)` → `(X, -y, Z)` with Y as vertical.
+- **Coordinate system**: Standard math convention (Y increases upward) in geometry code. SVG renders Y-down (no transform needed since viewBox units match). Three.js maps plan `(x, y)` → world `(X = x, Z = -y)` with world `Y` as vertical (`planToGround` in `adapters/rendering/coordinates.ts`).
 - **Entity IDs**: UUID v4 via `uuid` package (`v4 as uuidv4`)
 - **Tool state machine**: `select | wall | room | opening`
 - **Entity storage**: All entities in `Record<EntityId, Entity>` maps on `Project` — never arrays
