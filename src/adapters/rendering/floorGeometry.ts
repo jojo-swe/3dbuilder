@@ -12,16 +12,17 @@ export const FLOOR_COLOR = '#9ca3af';
 export interface FloorRenderData {
   roomId: EntityId;
   /**
-   * Polygon vertices in the flat shape's 2D coordinate space. The plan `y` is
-   * negated so that, once the shape is rotated `-90°` about X onto the ground,
-   * it maps to `-y -> Z` consistently with wall placement.
+   * Polygon vertices in the flat shape's 2D coordinate space. Plan `y` is kept
+   * as-is: rotating the shape `-90°` about X sends shape `(x, y)` to world
+   * `(x, 0, -y)`, which already gives the `-y -> Z` mapping walls use. Negating
+   * here as well would mirror floors to the opposite side of the X axis.
    */
   shapePoints: Vector2[];
 }
 
-/** Maps floor-plan polygon vertices into the flat floor shape space (`y -> -y`). */
+/** Maps floor-plan polygon vertices into the flat floor shape space (identity; see `shapePoints`). */
 export function buildFloorShapePoints(polygon: Vector2[]): Vector2[] {
-  return polygon.map((p) => ({ x: p.x, y: p.y === 0 ? 0 : -p.y }));
+  return polygon.map((p) => ({ x: p.x, y: p.y }));
 }
 
 /**

@@ -117,5 +117,23 @@ describe('wallGeometry', () => {
       expect(sills).toHaveLength(1);
       expect(sills[0].size).toEqual([1, 0.9, 0.2]);
     });
+
+    it('skips openings that extend past either end of the wall', () => {
+      const a = createNode(0, 0);
+      const b = createNode(4, 0);
+      const wall = createWall(a.id, b.id, 0.2, 2.4);
+      const base = { wallId: wall.id, width: 1, height: 2.1, altitude: 0, type: 'door' as const };
+      const pastStart: Opening = { ...base, id: 'op-start', distFromStart: 0.2 };
+      const pastEnd: Opening = { ...base, id: 'op-end', distFromStart: 3.8 };
+
+      const data = buildWallRenderData(wall, a, b, [pastStart, pastEnd]);
+      if (!data) throw new Error('expected data');
+
+      // Both openings ignored: the wall renders as one full-length solid box.
+      expect(data.parts).toHaveLength(1);
+      expect(data.parts[0].kind).toBe('solid');
+      expect(data.parts[0].size[0]).toBeCloseTo(4);
+      data.parts.forEach(p => expect(p.size[0]).toBeGreaterThan(0));
+    });
   });
 });

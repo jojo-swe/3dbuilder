@@ -28,7 +28,7 @@ Built with **React 19 + TypeScript + Vite**. The app is split into a framework-a
 
 - **Floor Plan is King**: The 2D geometry is the single source of truth. 3D is a derived view.
 - **Deterministic**: `f(Input) = Output`. No side effects in geometry/domain code.
-- **Layered dependency**: `ui` → `state` → `domain` → `geometry`. Lower layers never import from higher ones.
+- **Layered dependency**: `ui` → `adapters` → `state` → `domain` → `geometry`. Lower layers never import from higher ones. `adapters/` never imports React.
 
 ### Data Flow
 
@@ -36,7 +36,7 @@ Built with **React 19 + TypeScript + Vite**. The app is split into a framework-a
 User click → FloorPlanEditor → useEditorStore action
   → Zustand/Immer mutates project
   → addWall triggers RoomFinder.findRooms() (auto room detection)
-  → React re-renders SVG overlays + Three.js scene
+  → React re-renders SVG overlays; BuildingModel rebuilds the scene via adapters/rendering
 ```
 
 ## Directory Structure
@@ -58,14 +58,22 @@ src/
 │   │   └── AreaService.ts  # calculateAreas() — total & per-room
 │   └── state/
 │       └── store.ts    # Single Zustand + Immer store (useEditorStore)
+├── adapters/
+│   └── rendering/      # Domain → Three.js. No React.
+│       ├── coordinates.ts   # planToGround / planToWorld / wallAngleY (2D plan → 3D world)
+│       ├── wallGeometry.ts  # buildWallRenderData — pure: wall + openings → box parts
+│       ├── floorGeometry.ts # buildFloorRenderData — pure: room polygon → floor shape
+│       ├── SceneBuilder.ts  # buildSceneGroup / disposeGroup — instantiates THREE objects
+│       └── index.ts         # Barrel export
 └── ui/
     ├── editor/
     │   ├── FloorPlanEditor.tsx  # SVG 2D editor, wall/opening drawing
     │   ├── Toolbar.tsx          # Tool selector (select/wall/room/opening)
     │   └── PropertyInspector.tsx # Right panel — wall/room property editing
     └── viewport/
-        ├── Viewport3D.tsx       # React Three Fiber canvas, lighting, OrbitControls
-        └── BuildingModel.tsx    # WallMesh + RoomMesh — extrudes 2D plan to 3D
+        ├── Viewport3D.tsx       # React Three Fiber canvas, lighting, OrbitControls, failure fallbacks
+        ├── ErrorBoundary.tsx    # Reusable error boundary (works in DOM and R3F trees)
+        └── BuildingModel.tsx    # Thin host: mounts buildSceneGroup(project) as a <primitive>
 ```
 
 ## Core Domain Model (`src/core/domain/types.ts`)
@@ -101,6 +109,7 @@ interface EditorState {
   selectedIds: EntityId[];  // Current selection
   activeTool: ToolType;     // 'select' | 'wall' | 'room' | 'opening'
   snapGridSize: number;     // Snap grid in meters (default 0.1)
+  activeFloorId: EntityId | null; // Floor new walls are drawn on; set by createProject
 }
 ```
 
@@ -108,19 +117,21 @@ interface EditorState {
 
 | Action | Description |
 |--------|-------------|
-| `createProject()` | Resets project, creates initial Ground Floor |
+| `createProject()` | Resets project, creates initial Ground Floor, sets `activeFloorId`, clears selection |
 | `addNode(x, y)` | Creates node, returns its ID |
 | `addWall(startId, endId, floorId)` | Creates wall, **triggers room auto-detection** |
 | `addOpening(opening)` | Adds door/window directly to openings map |
 | `updateWall(id, updates)` | Partial wall update via `Object.assign` |
 | `updateRoom(id, updates)` | Partial room update via `Object.assign` |
 | `moveNode(id, x, y)` | Repositions a node |
-| `removeWall(id)` | Removes wall and its floor reference |
-| `removeNode(id)` | Removes node (does not cascade to walls — known limitation) |
+| `removeWall(id)` | Cascades: deletes the wall's openings and floor reference, then **re-runs room detection** |
+| `removeNode(id)` | Cascades: deletes every attached wall (and their openings), then **re-runs room detection** per affected floor |
 | `setTool(tool)` | Changes active tool |
 | `select(ids)` | Updates selection |
 
-**Room auto-detection in `addWall`**: After adding a wall, the store rebuilds all rooms for that floor by running `RoomFinder.findRooms()` on the floor's walls, deleting old rooms, and creating new ones.
+**Room auto-detection**: `addWall`, `removeWall` and `removeNode` all rebuild the rooms of every affected floor by running `RoomFinder.findRooms()` on that floor's walls, deleting old rooms, and creating new ones. Room IDs are therefore **not stable** across wall edits — don't hold on to a room ID (e.g. in `selectedIds`) after changing walls.
+
+**Invariant**: after any store action, no wall references a missing node and no opening references a missing wall. Any new deletion action must preserve this (see `store.test.ts`).
 
 ## Geometry Engine (`src/core/geometry/`)
 
@@ -157,7 +168,9 @@ SVG-based 2D editor. The SVG `viewBox` is in **meters** (default `0 0 20 15`).
 **Grid**: Two-level SVG pattern — 1m minor grid (light) and 5m major grid (darker). `NODE_RADIUS = 0.15m`.
 
 **Tool behaviors**:
-- `wall`: First click creates two overlapping nodes (start + temp); mouse move repositions temp node via `moveNode`; each subsequent click finalizes a wall and creates a new temp node, forming a chain. ESC or right-click cancels and removes the dangling temp node/wall.
+- `wall`: First click creates two overlapping nodes (start + temp); mouse move repositions temp node via `moveNode`; each subsequent click finalizes a wall and creates a new temp node, forming a chain. The in-progress preview wall's ID is kept in `previewWallIdRef`. ESC or right-click cancels and removes the dangling temp node/wall. Walls are drawn on `activeFloorId`.
+  - **Node snapping**: a click within `NODE_RADIUS * 2` of an existing node reuses that node (via `findExistingNode`) instead of creating a duplicate. This is what lets a chain close into a room.
+  - **Zero-length guard**: a click within `snapGridSize` of the previous chain node is ignored.
 - `opening`: Mouse proximity search (< 0.5m) finds the closest wall via `closestPointOnSegment`; shows a live preview rect; click places a door `Opening`.
 - `select`: Click on wall/room sets `selectedIds`.
 
@@ -181,18 +194,33 @@ React Three Fiber `<Canvas>` with:
 - Camera: position `[5, 5, 5]`, FOV 45
 - Lighting: `ambientLight` (intensity 0.5) + `directionalLight` with shadows
 - `<OrbitControls>` from `@react-three/drei`
-- Grid helper + "city" environment preset
+- Grid helper + environment lighting from a **bundled** HDR: `public/hdr/potsdamer_platz_1k.hdr`, the same file as drei's `preset="city"` (source and CC0 license in `public/hdr/README.md`)
 - Background: `#111827`
+
+**No runtime CDN**: don't use drei `preset=` props (`<Environment preset>`, `<Stage environment>`, etc.). They fetch from raw.githack.com at runtime, which breaks offline and behind firewalls. Add the file under `public/` and reference it with `` `${import.meta.env.BASE_URL}…` ``.
+
+**Failure isolation** (a 3D problem must never blank the 2D editor):
+- `<Environment>` is wrapped in its own `Suspense` + `ErrorBoundary`, so a slow load doesn't hide the scene and a failed load (e.g. a wrong deploy path) only drops reflections. If that does happen, R3F also reports the caught error via `reportError`, so the console shows an "Uncaught Error … .hdr" line.
+- WebGL2 support is checked up front with `WebGL.isWebGL2Available()`. R3F creates its renderer in an un-awaited async effect, so a missing context can't be caught by an error boundary. Without WebGL the pane shows a "3D preview is unavailable" fallback with a Retry button.
+- Any other error inside the `<Canvas>` is caught by an outer `ErrorBoundary` with the same fallback. Retry re-mounts the canvas.
+- Anything new that loads inside the Canvas (textures, models, HDRs) needs the same `ErrorBoundary` + `Suspense` treatment.
 
 ### BuildingModel (`src/ui/viewport/BuildingModel.tsx`)
 
-Renders `WallMesh` and `RoomMesh` for every entity in the project.
+Thin React host. Subscribes to `project`, calls `buildSceneGroup(project)` in a `useMemo`, mounts the result via `<primitive object={group} />`, and calls `disposeGroup` on the previous group when it changes. **Put 3D logic in `src/adapters/rendering/`, not here.**
 
-**Coordinate mapping** (2D → 3D): `x → X`, `-y → Z`, height extrusion → `Y`. SVG Y-down is inverted for 3D.
+## Rendering Adapter (`src/adapters/rendering/`)
 
-**WallMesh**: Positions a `<group>` at the wall midpoint, rotated to the wall angle. Iterates through wall length, alternating between solid `<boxGeometry>` segments and opening gaps (sill + lintel + transparent glass placeholder). Material color from `wall.material`.
+Converts the domain model to Three.js in two stages, so the geometry math is testable without WebGL:
 
-**RoomMesh**: Creates a `THREE.Shape` from polygon vertices (using `-y`), converts to `<shapeGeometry>`, rotated `-90°` on X to lie flat on the ground plane (`y = 0.01`).
+1. **Pure render data** (`wallGeometry.ts`, `floorGeometry.ts`, `coordinates.ts`): plain objects (positions, box sizes, colors). No Three.js, no React. Unit-tested directly.
+2. **Instantiation** (`SceneBuilder.ts`): turns render data into `THREE.Group`/`THREE.Mesh`. `disposeGroup` frees geometries and materials, so always call it when discarding a group.
+
+**Coordinate mapping** (2D → 3D): `x → X`, `-y → Z`, height extrusion → `Y` (see `coordinates.ts`).
+
+**`buildWallRenderData`**: Returns `null` for a missing node or a wall shorter than 0.01 m. Otherwise it splits the wall lengthwise into `WallPart`s (`solid` segments around each opening, plus `sill` / `lintel` / translucent `glass` for the opening), positioned in the wall group's local frame with `+X` along the wall. Openings that extend past either end of the wall are skipped. Overlapping openings are **not** handled yet.
+
+**`buildFloorRenderData`**: Floor shape from the room polygon (`RoomUtils.getPolygon`), lying flat at `FLOOR_ELEVATION` (0.01 m). Shape points keep plan `y` **unchanged**, because the mesh's `-90°` X rotation already sends shape `(x, y)` to world `(x, 0, -y)`. Negating `y` as well mirrors floors away from their walls (this was a real bug). `SceneBuilder.test.ts` asserts floor vertices land on `planToGround`, so keep that test when changing the mapping.
 
 ## Bygglov Extension (`src/core/domain/Bygglov.ts`)
 
@@ -211,7 +239,13 @@ type AreaType = 'BYA' | 'BTA' | 'BOA' | 'BIA';
 - Test files are **collocated** with source: `Foo.ts` → `Foo.test.ts`
 - **No DOM** required for geometry/domain tests — pure unit tests
 - Test data is built using `DomainFactory` helpers (`createNode`, `createWall`)
+- Store tests (`src/core/state/store.test.ts`) drive the real Zustand store via `useEditorStore.getState()`; call `createProject()` in `beforeEach` to reset it
+- UI components (`src/ui/`) are mostly untested; test 3D behaviour through the pure functions in `src/adapters/rendering/`. Component tests that need a DOM put `// @vitest-environment jsdom` on the first line and use `@testing-library/react` (see `ErrorBoundary.test.tsx`)
+- End-to-end manual UI testing steps live in `.agents/skills/testing-3dbuilder/SKILL.md`
 - Test coverage run with `vitest run --coverage` (v8 provider)
+- Before committing, run `npm run test -- --run`, `npm run build` (includes `tsc -b`) and `npm run lint`. `tsc` catches strict-mode errors that Vitest does not, because Vitest strips types without checking them
+
+**Environment note**: `@rollup/rollup-win32-x64-msvc` is in `optionalDependencies` so `npm install` succeeds on Linux/macOS. Do not move it back to `devDependencies`.
 
 Example test pattern:
 ```typescript
@@ -245,7 +279,7 @@ From `conductor/code_styleguides/typescript.md` (Google TypeScript Style Guide):
 ## Key Conventions
 
 - **Units**: Meters throughout — coordinates, wall dimensions, snap grid, node radius
-- **Coordinate system**: Standard math convention (Y increases upward) in geometry code. SVG renders Y-down (no transform needed since viewBox units match). Three.js maps `(x, y)` → `(X, -y, Z)` with Y as vertical.
+- **Coordinate system**: Standard math convention (Y increases upward) in geometry code. SVG renders Y-down (no transform needed since viewBox units match). Three.js maps plan `(x, y)` → world `(X = x, Z = -y)` with world `Y` as vertical (`planToGround` in `adapters/rendering/coordinates.ts`).
 - **Entity IDs**: UUID v4 via `uuid` package (`v4 as uuidv4`)
 - **Tool state machine**: `select | wall | room | opening`
 - **Entity storage**: All entities in `Record<EntityId, Entity>` maps on `Project` — never arrays

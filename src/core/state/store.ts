@@ -11,6 +11,7 @@ interface EditorState {
   selectedIds: EntityId[];
   activeTool: ToolType;
   snapGridSize: number; // meters
+  activeFloorId: EntityId | null;
 }
 
 interface EditorActions {
@@ -46,6 +47,7 @@ export const useEditorStore = create<EditorState & EditorActions>()(
     selectedIds: [],
     activeTool: 'select',
     snapGridSize: 0.1,
+    activeFloorId: null,
 
     setTool: (tool) => set((state) => { state.activeTool = tool; }),
     select: (ids) => set((state) => { state.selectedIds = ids; }),
@@ -63,7 +65,6 @@ export const useEditorStore = create<EditorState & EditorActions>()(
          floors: {
            [initialFloorId]: {
              id: initialFloorId,
-// ...
              name: 'Ground Floor',
              levelIndex: 0,
              elevation: 0,
@@ -72,6 +73,8 @@ export const useEditorStore = create<EditorState & EditorActions>()(
            }
          }
        };
+       state.activeFloorId = initialFloorId;
+       state.selectedIds = [];
     }),
 
     addNode: (x, y) => {
@@ -155,19 +158,98 @@ export const useEditorStore = create<EditorState & EditorActions>()(
     }),
 
     removeWall: (id) => set((state) => {
-        // Remove from walls
-        delete state.project.walls[id];
-        // Remove from floors
+        // 1. Delete all openings that reference this wall
+        Object.keys(state.project.openings).forEach(opId => {
+            if (state.project.openings[opId].wallId === id) {
+                delete state.project.openings[opId];
+            }
+        });
+
+        // 2. Remove from floor, tracking which floor was affected
+        let affectedFloorId: EntityId | null = null;
         Object.values(state.project.floors).forEach(floor => {
             const idx = floor.wallIds.indexOf(id);
-            if(idx !== -1) floor.wallIds.splice(idx, 1);
+            if (idx !== -1) {
+                floor.wallIds.splice(idx, 1);
+                affectedFloorId = floor.id;
+            }
         });
-        // Note: Should also clean up rooms dependent on this wall
+
+        // 3. Delete the wall
+        delete state.project.walls[id];
+
+        // 4. Re-detect rooms for the affected floor
+        if (affectedFloorId) {
+            const floor = state.project.floors[affectedFloorId];
+            const floorWalls: Record<EntityId, Wall> = {};
+            floor.wallIds.forEach(wId => {
+                if (state.project.walls[wId]) floorWalls[wId] = state.project.walls[wId];
+            });
+            const loops = RoomFinder.findRooms(state.project.nodes, floorWalls);
+            floor.roomIds.forEach(rId => { delete state.project.rooms[rId]; });
+            floor.roomIds = [];
+            loops.forEach((wallIds, index) => {
+                const roomId = uuidv4();
+                state.project.rooms[roomId] = {
+                    id: roomId,
+                    name: `Room ${index + 1}`,
+                    boundaryWallIds: wallIds,
+                    floorId: floor.id
+                };
+                floor.roomIds.push(roomId);
+            });
+        }
     }),
 
     removeNode: (id) => set((state) => {
+        // 1. Find all walls that reference this node
+        const wallsToRemove = Object.values(state.project.walls)
+            .filter(w => w.startNodeId === id || w.endNodeId === id)
+            .map(w => w.id);
+
+        // 2. Cascade: delete their openings and floor references
+        const affectedFloorIds = new Set<EntityId>();
+        wallsToRemove.forEach(wallId => {
+            Object.keys(state.project.openings).forEach(opId => {
+                if (state.project.openings[opId].wallId === wallId) {
+                    delete state.project.openings[opId];
+                }
+            });
+            Object.values(state.project.floors).forEach(floor => {
+                const idx = floor.wallIds.indexOf(wallId);
+                if (idx !== -1) {
+                    floor.wallIds.splice(idx, 1);
+                    affectedFloorIds.add(floor.id);
+                }
+            });
+            delete state.project.walls[wallId];
+        });
+
+        // 3. Delete the node
         delete state.project.nodes[id];
-        // Note: Should also remove attached walls?
+
+        // 4. Re-detect rooms for each affected floor
+        affectedFloorIds.forEach(floorId => {
+            const floor = state.project.floors[floorId];
+            if (!floor) return;
+            const floorWalls: Record<EntityId, Wall> = {};
+            floor.wallIds.forEach(wId => {
+                if (state.project.walls[wId]) floorWalls[wId] = state.project.walls[wId];
+            });
+            const loops = RoomFinder.findRooms(state.project.nodes, floorWalls);
+            floor.roomIds.forEach(rId => { delete state.project.rooms[rId]; });
+            floor.roomIds = [];
+            loops.forEach((wallIds, index) => {
+                const roomId = uuidv4();
+                state.project.rooms[roomId] = {
+                    id: roomId,
+                    name: `Room ${index + 1}`,
+                    boundaryWallIds: wallIds,
+                    floorId: floor.id
+                };
+                floor.roomIds.push(roomId);
+            });
+        });
     })
   }))
 );

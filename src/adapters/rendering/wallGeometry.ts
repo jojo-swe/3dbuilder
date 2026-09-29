@@ -88,7 +88,11 @@ export function buildWallRenderData(
   const color = materialColor(wall.material);
 
   const parts: WallPart[] = [];
-  const sorted = [...openings].sort((a, b) => a.distFromStart - b.distFromStart);
+  // Openings that stick out past either end of the wall would produce negative-length
+  // or overhanging boxes, so they are skipped rather than rendered.
+  const sorted = openings
+    .filter(op => op.distFromStart - op.width / 2 >= 0 && op.distFromStart + op.width / 2 <= length)
+    .sort((a, b) => a.distFromStart - b.distFromStart);
 
   let currentDist = 0;
   for (const op of sorted) {
