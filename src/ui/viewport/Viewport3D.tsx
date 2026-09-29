@@ -5,6 +5,9 @@ import WebGL from 'three/addons/capabilities/WebGL.js';
 import { BuildingModel } from './BuildingModel';
 import { ErrorBoundary } from './ErrorBoundary';
 
+// Served from public/; BASE_URL keeps it working if the app is deployed under a sub-path.
+const ENVIRONMENT_MAP_URL = `${import.meta.env.BASE_URL}hdr/potsdamer_platz_1k.hdr`;
+
 // Shown in place of the 3D pane if the canvas itself fails (e.g. no WebGL); the 2D editor keeps working.
 const ViewportFallback: React.FC<{ onRetry: () => void }> = ({ onRetry }) => (
   <div
@@ -90,14 +93,15 @@ export const Viewport3D: React.FC = () => {
                  <BuildingModel />
             </group>
 
-            {/* The HDR is fetched from a CDN at runtime. Isolate it so a slow load doesn't
-                hide the scene and a failed load (offline, blocked CDN) only drops reflections. */}
+            {/* Bundled copy of drei's "city" preset (see public/hdr/README.md), so lighting
+                works offline. Still isolated: a slow load shouldn't hide the scene and a
+                failed one (e.g. a bad deploy path) should only drop reflections. */}
             <ErrorBoundary
               fallback={null}
               onError={error => console.warn('Environment map failed to load; rendering without it.', error)}
             >
               <Suspense fallback={null}>
-                <Environment preset="city" />
+                <Environment files={ENVIRONMENT_MAP_URL} />
               </Suspense>
             </ErrorBoundary>
         </Canvas>

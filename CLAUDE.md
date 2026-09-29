@@ -194,14 +194,16 @@ React Three Fiber `<Canvas>` with:
 - Camera: position `[5, 5, 5]`, FOV 45
 - Lighting: `ambientLight` (intensity 0.5) + `directionalLight` with shadows
 - `<OrbitControls>` from `@react-three/drei`
-- Grid helper + "city" environment preset
+- Grid helper + environment lighting from a **bundled** HDR: `public/hdr/potsdamer_platz_1k.hdr`, the same file as drei's `preset="city"` (source and CC0 license in `public/hdr/README.md`)
 - Background: `#111827`
 
+**No runtime CDN**: don't use drei `preset=` props (`<Environment preset>`, `<Stage environment>`, etc.). They fetch from raw.githack.com at runtime, which breaks offline and behind firewalls. Add the file under `public/` and reference it with `` `${import.meta.env.BASE_URL}…` ``.
+
 **Failure isolation** (a 3D problem must never blank the 2D editor):
-- `<Environment preset="city">` fetches its HDR from a CDN **at runtime**. It is wrapped in its own `Suspense` + `ErrorBoundary`, so a slow load doesn't hide the scene and a failed load (offline, blocked CDN) only drops reflections. R3F still reports the caught error via `reportError`, so an "Uncaught Error … .hdr" line in the console is expected and harmless.
+- `<Environment>` is wrapped in its own `Suspense` + `ErrorBoundary`, so a slow load doesn't hide the scene and a failed load (e.g. a wrong deploy path) only drops reflections. If that does happen, R3F also reports the caught error via `reportError`, so the console shows an "Uncaught Error … .hdr" line.
 - WebGL2 support is checked up front with `WebGL.isWebGL2Available()`. R3F creates its renderer in an un-awaited async effect, so a missing context can't be caught by an error boundary. Without WebGL the pane shows a "3D preview is unavailable" fallback with a Retry button.
 - Any other error inside the `<Canvas>` is caught by an outer `ErrorBoundary` with the same fallback. Retry re-mounts the canvas.
-- Anything new that loads over the network inside the Canvas (textures, models, HDRs) needs the same `ErrorBoundary` + `Suspense` treatment.
+- Anything new that loads inside the Canvas (textures, models, HDRs) needs the same `ErrorBoundary` + `Suspense` treatment.
 
 ### BuildingModel (`src/ui/viewport/BuildingModel.tsx`)
 

@@ -26,8 +26,8 @@ If `Rooms:` stays 0, check that the closing click actually landed on the first n
 
 ## Headless browsers / sandboxes
 - **WebGL**: headless Chromium has no GPU. Launch with `--use-angle=swiftshader --enable-unsafe-swiftshader` for a working 3D pane. Without it you should see the "3D preview is unavailable" fallback while the 2D editor keeps working, which is itself a useful check.
-- **HDR environment map**: `<Environment preset="city">` fetches `potsdamer_platz_1k.hdr` from a CDN. If the sandbox blocks it, the app still works (no reflections) and logs one expected "Uncaught Error … .hdr" plus a warning. To get reflections, serve a stand-in via request interception: a flat Radiance file `#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 32 +X 64\n` followed by 64×32×4 bytes. Don't use 1×1: tiny maps make three.js emit an invalid shader.
-- To reproduce the old blank-screen bug, abort `**/*.hdr` requests. On current code the editor must stay visible.
+- **Offline**: the app makes no external requests. The environment HDR is served by the dev server from `public/hdr/`, so sandboxes without internet get full lighting. A good regression check is to abort every request whose host isn't the dev server: expect 0 page errors and a 200 for `/hdr/potsdamer_platz_1k.hdr`.
+- **HDR failure path**: abort `**/*.hdr` requests. The editor must stay visible, 3D renders without reflections, and one "Uncaught Error … .hdr" plus a warning is expected in the console.
 
 ## Devin Secrets Needed
 None — runs fully locally, no auth.
