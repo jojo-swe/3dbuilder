@@ -337,7 +337,7 @@ export const FloorPlanEditor: React.FC = () => {
           {' | '}Rooms: {rooms.length}
         </div>
         <div style={{ color: '#6b7280', fontSize: '0.75rem', marginTop: 4 }}>
-          Right-click or ESC to cancel • Click walls to select • Delete removes the selected wall
+          ESC cancels • Click a wall to select, Delete removes it
         </div>
       </div>
     </div>
