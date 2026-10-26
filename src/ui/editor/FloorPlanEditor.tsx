@@ -173,10 +173,18 @@ export const FloorPlanEditor: React.FC = () => {
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') cancelOperation();
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      // Backspace in an inspector field edits text; it must not delete the wall.
+      if (e.target instanceof Element && e.target.closest('input, select, textarea')) return;
+      const id = selectedIds[0];
+      if (activeTool === 'select' && id && project.walls[id]) {
+        removeWall(id);
+        useEditorStore.getState().select([]);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cancelOperation]);
+  }, [cancelOperation, activeTool, selectedIds, project.walls, removeWall]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -329,7 +337,7 @@ export const FloorPlanEditor: React.FC = () => {
           {' | '}Rooms: {rooms.length}
         </div>
         <div style={{ color: '#6b7280', fontSize: '0.75rem', marginTop: 4 }}>
-          Right-click or ESC to cancel • Click walls to select
+          Right-click or ESC to cancel • Click walls to select • Delete removes the selected wall
         </div>
       </div>
     </div>
