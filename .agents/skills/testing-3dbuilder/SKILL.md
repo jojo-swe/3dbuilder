@@ -10,10 +10,10 @@ React 19 + TypeScript + Vite app. 2D floor-plan editor is the source of truth; t
 ## Run locally
 - Install: `npm install` (`@rollup/rollup-win32-x64-msvc` is an optionalDependency, so Linux/macOS skip it; no `--force` needed).
 - Dev server: `npm run dev` → http://localhost:5173/ (add `-- --host 127.0.0.1` if needed).
-- Tests: `npm run test:coverage`. Build: `npm run build`. Lint: `npm run lint` (0 errors; 3 warnings come from generated `coverage/` files if you've run coverage).
+- Tests: `npm run test:coverage`. Build: `npm run build`. Lint: `npm run lint` (0 errors, 0 warnings; `coverage/` is git- and ESLint-ignored).
 
 ## Layout
-Left toolbar (Select / Wall / Room / Opening / New Project) | 2D SVG editor (left half) | 3D viewport (right half) | right Property Inspector. A project with a Ground Floor is auto-created on load.
+Left toolbar (Select / Wall / Opening / New Project) | 2D SVG editor (left half) | 3D viewport (right half) | right Property Inspector. A project with a Ground Floor is auto-created on load.
 
 ## Golden-path UI test
 1. **Draw walls**: click the **Wall** tool, then click points in the 2D editor. Each click finalizes a wall and chains to the next; press **ESC** or right-click to finish (removes the trailing temp wall). N clicks → N-1 walls. Status bar shows live `Walls:`/`Rooms:` counts.

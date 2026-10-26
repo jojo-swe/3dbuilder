@@ -15,14 +15,15 @@ npm run dev            # Vite dev server with HMR
 npm run build          # tsc -b && vite build
 npm run lint           # ESLint (flat config)
 npm run preview        # Preview the production build
-npm run test           # Vitest watch mode
-npm run test:coverage  # Vitest with the v8 coverage report
+npm test               # Vitest, single run
+npm run test:watch     # Vitest watch mode
+npm run test:coverage  # Vitest with the v8 coverage report (writes git-ignored coverage/)
 
 # One file
 npx vitest run src/core/geometry/RoomFinder.test.ts
 ```
 
-Before committing, run `npm run test -- --run`, `npm run build`, and `npm run lint`. Vitest strips types without checking them; `tsc -b` (via `build`) catches strict-mode errors the tests miss.
+Before committing, run `npm test`, `npm run build`, and `npm run lint`. CI (`.github/workflows/ci.yml`) runs lint, test, and build on every push and pull request. Vitest strips types without checking them; `tsc -b` (via `build`) catches strict-mode errors the tests miss.
 
 `@rollup/rollup-win32-x64-msvc` is an `optionalDependency` so `npm install` succeeds on Linux and macOS. Leave it there.
 
@@ -67,7 +68,7 @@ Defaults: wall thickness `0.2` m and height `2.4` m (`store.ts`); opening width 
 
 **Units are meters.** Geometry uses standard math coordinates (Y up). The SVG `viewBox` is in meters and Y-down, so no extra transform is applied. Three.js maps plan `(x, y)` to world `(X = x, Z = -y)` with world Y up — see `planToGround` in [`src/adapters/rendering/coordinates.ts`](src/adapters/rendering/coordinates.ts).
 
-Tools are `select | wall | room | opening`. Inside a Zustand `set()` callback, mutate `state` directly; Immer writes the next immutable snapshot.
+Tools are `select | wall | opening`. Inside a Zustand `set()` callback, mutate `state` directly; Immer writes the next immutable snapshot.
 
 **Invariant:** after any store action, no wall references a missing node and no opening references a missing wall. New deletion actions must keep that. See [`src/core/state/store.test.ts`](src/core/state/store.test.ts).
 
@@ -98,6 +99,12 @@ Put 3D logic in `src/adapters/rendering/`. `BuildingModel` only mounts `buildSce
 The wall tool chains clicks on `activeFloorId`. A click within `NODE_RADIUS * 2` (`NODE_RADIUS` is `0.15` m) of an existing node reuses that node; that is how a chain closes into a room. A click within `snapGridSize` (`0.1` m) of the previous chain node is ignored (zero-length guard). Escape or right-click removes the dangling temp node and preview wall.
 
 The opening tool searches within `0.5` m via `closestPointOnSegment` and places a door on click.
+
+With the select tool, Delete or Backspace removes the selected wall (ignored while focus is in an input, select, or textarea).
+
+### Styling
+
+Tailwind is not installed. Utility class names like `w-64` or `absolute bottom-4` do nothing. Use the classes in `src/index.css` or inline styles.
 
 Manual click-path checks: [`.agents/skills/testing-3dbuilder/SKILL.md`](.agents/skills/testing-3dbuilder/SKILL.md).
 

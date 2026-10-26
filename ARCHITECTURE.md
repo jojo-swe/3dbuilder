@@ -18,20 +18,18 @@ The "brain" of the application. Framework-agnostic.
 
 - **`geometry/`**: Pure math. `Vector2`, `Line`, `Polygon`. No building concepts here.
 - **`domain/`**: Building entities. `Wall`, `Room`, `Floor`. Uses `geometry`.
-- **`state/`**: Application state management (Zustand). Handles undo/redo, selection, and tools.
+- **`state/`**: Application state management (Zustand). Handles selection and tools.
 
 ### `src/adapters`
 
 Bridges between the `core` and external worlds.
 
 - **`rendering/`**: Three.js rendering logic. Observes `core` state and updates the scene.
-- **`export/`**: Adapters for PDF/DXF generation.
 
 ### `src/ui`
 
 The view layer (React).
 
-- **`components/`**: Reusable UI atoms (Buttons, Inputs).
 - **`editor/`**: Application-specific panels (Toolbar, Property Inspector).
 - **`viewport/`**: The Canvas wrapper.
 
@@ -51,7 +49,7 @@ The view layer (React).
 - **Frontend**: React + Vite
 - **3D Engine**: Three.js (managed via adapter, not R3F state directly, to decouple geometry)
 - **State**: Zustand + Immer
-- **Styles**: CSS Modules / Vanilla CSS Variables
+- **Styles**: Plain CSS in `src/index.css` plus inline styles
 
 ## 6. Key Invariants
 
