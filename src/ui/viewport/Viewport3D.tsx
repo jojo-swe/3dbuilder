@@ -58,7 +58,7 @@ export const Viewport3D: React.FC = () => {
       backgroundColor: '#111827'
     }}>
         {/* Overlay / UI */}
-        <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-black/50 text-white text-xs rounded backdrop-blur-sm pointer-events-none">
+        <div className="viewport-label">
             3D Preview
         </div>
 

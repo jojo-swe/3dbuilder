@@ -12,7 +12,7 @@ export const PropertyInspector: React.FC = () => {
 
   if (selectedIds.length === 0) {
     return (
-      <div className="w-64 bg-white border-l border-gray-200 p-4 text-sm text-gray-500">
+      <div className="inspector" style={{ color: '#6b7280' }}>
         No selection
       </div>
     );
@@ -30,20 +30,20 @@ export const PropertyInspector: React.FC = () => {
   }
 
   return (
-    <div className="w-64 bg-white border-l border-gray-200 flex flex-col shadow-sm z-10 overflow-auto">
-      <div className="p-4 border-b border-gray-100 bg-gray-50">
-        <h3 className="font-semibold text-gray-800">Properties</h3>
-        <span className="text-xs text-gray-500 font-mono">{id.slice(0, 8)}...</span>
+    <div className="inspector">
+      <div>
+        <h3 style={{ margin: 0 }}>Properties</h3>
+        <span style={{ color: '#6b7280', fontSize: '0.75rem', fontFamily: 'monospace' }}>{id.slice(0, 8)}...</span>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div>
         {/* Wall Properties */}
         {wall && (
-          <div className="space-y-3">
-             <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Wall</div>
+          <div style={{ marginTop: '1rem' }}>
+             <div style={{ color: '#9ca3af', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>Wall</div>
              
-             <div className="flex flex-col gap-1">
-               <label htmlFor="wall-thick" className="text-sm font-medium text-gray-700">Thickness (m)</label>
+             <div className="inspector-field">
+               <label htmlFor="wall-thick">Thickness (m)</label>
                <input 
                  id="wall-thick"
                  type="number" 
@@ -54,8 +54,8 @@ export const PropertyInspector: React.FC = () => {
                />
              </div>
 
-             <div className="flex flex-col gap-1">
-               <label htmlFor="wall-height" className="text-sm font-medium text-gray-700">Height (m)</label>
+             <div className="inspector-field">
+               <label htmlFor="wall-height">Height (m)</label>
                <input 
                  id="wall-height"
                  type="number" 
@@ -66,11 +66,11 @@ export const PropertyInspector: React.FC = () => {
                />
              </div>
 
-             <div className="flex flex-col gap-1">
-               <label htmlFor="wall-mat" className="text-sm font-medium text-gray-700">Material</label>
+             <div className="inspector-field">
+               <label htmlFor="wall-mat">Material</label>
                <select
                  id="wall-mat"
-                 className="inspector-input bg-white"
+                 className="inspector-input"
                  value={wall.material || 'plaster_white'}
                  onChange={(e) => {
                    const VALID_MATERIALS: MaterialType[] = ['plaster_white', 'brick_red', 'wood_panel'];
@@ -88,11 +88,11 @@ export const PropertyInspector: React.FC = () => {
 
         {/* Room Properties */}
         {room && (
-          <div className="space-y-3">
-             <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Room</div>
+          <div style={{ marginTop: '1rem' }}>
+             <div style={{ color: '#9ca3af', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>Room</div>
              
-             <div className="flex flex-col gap-1">
-               <label htmlFor="room-name" className="text-sm font-medium text-gray-700">Name</label>
+             <div className="inspector-field">
+               <label htmlFor="room-name">Name</label>
                <input 
                  id="room-name"
                  type="text" 
@@ -102,17 +102,17 @@ export const PropertyInspector: React.FC = () => {
                />
              </div>
 
-             <div className="flex flex-col gap-1">
-               <span className="text-sm font-medium text-gray-700">Area</span>
-               <div className="p-2 bg-gray-50 border border-gray-200 rounded text-gray-800 font-mono text-sm">
+             <div className="inspector-field">
+               <span>Area</span>
+               <div style={{ fontFamily: 'monospace' }}>
                    {area.toFixed(2)} m²
                </div>
              </div>
 
              {/* Bygglov Extension - Area Type */}
-             <div className="flex flex-col gap-1">
-               <label htmlFor="room-type" className="text-sm font-medium text-gray-700">Area Type</label>
-               <select id="room-type" className="inspector-input bg-white" disabled>
+             <div className="inspector-field">
+               <label htmlFor="room-type">Area Type</label>
+               <select id="room-type" className="inspector-input" disabled>
                   <option value="BOA">BOA (Living Area)</option>
                   <option value="BIA">BIA (Auxiliary)</option>
                </select>

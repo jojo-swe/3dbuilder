@@ -231,9 +231,8 @@ export const FloorPlanEditor: React.FC = () => {
   const rooms = Object.values(project.rooms);
 
   return (
-    <div 
-      className="bg-gray-100 relative"
-      style={{ width: '100%', height: '100%', overflow: 'hidden' }}
+    <div
+      style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}
     >
       <svg
         ref={svgRef}
@@ -323,15 +322,13 @@ export const FloorPlanEditor: React.FC = () => {
       </svg>
       
       {/* Status Bar */}
-      <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur p-3 rounded-lg shadow-lg text-sm font-mono border border-gray-200">
-        <div className="flex gap-4 items-center">
-          <span>Tool: <span className="font-bold text-blue-600 uppercase">{activeTool}</span></span>
-          <span className="text-gray-400">|</span>
-          <span>Walls: {walls.length}</span>
-          <span className="text-gray-400">|</span>
-          <span>Rooms: {rooms.length}</span>
+      <div className="status-bar">
+        <div>
+          Tool: <strong style={{ color: 'var(--primary)', textTransform: 'uppercase' }}>{activeTool}</strong>
+          {' | '}Walls: {walls.length}
+          {' | '}Rooms: {rooms.length}
         </div>
-        <div className="text-gray-500 text-xs mt-1">
+        <div style={{ color: '#6b7280', fontSize: '0.75rem', marginTop: 4 }}>
           Right-click or ESC to cancel • Click walls to select
         </div>
       </div>
