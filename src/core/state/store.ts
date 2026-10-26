@@ -4,7 +4,7 @@ import type { Project, Wall, EntityId, Room, Opening } from '../domain/types';
 import { v4 as uuidv4 } from 'uuid';
 import { RoomFinder } from '../geometry/RoomFinder';
 
-export type ToolType = 'select' | 'wall' | 'room' | 'opening';
+export type ToolType = 'select' | 'wall' | 'opening';
 
 interface EditorState {
   project: Project;
