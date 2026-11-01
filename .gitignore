@@ -25,3 +25,15 @@ dist-ssr
 
 # Test coverage output
 coverage
+
+# privacy-guard: local secrets, logs, and editor state
+.env
+.env.*
+!.env.example
+logs/
+*.local.*
+.vscode/settings.json
+.idea/
+*.pem
+*.key
+secrets/
